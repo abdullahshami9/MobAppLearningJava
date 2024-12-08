@@ -5,7 +5,8 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
-import android.util.Log;
+import android.view.View;
+import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,51 +14,39 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import android.view.View;
-import android.widget.EditText;
-import android.widget.Button;
-import android.widget.TextView;
+public class register extends AppCompatActivity {
 
-public class MainActivity extends AppCompatActivity {
-
-    private static final String TAG = "MainActivity";
-
-    EditText loginInputUsername, loginInputPassword;
-    Button loginBtn;
-    TextView registerBtn;
+    TextView loginscreen;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_main);
-
-        // Initialize UI components
-        loginInputUsername = findViewById(R.id.username_inupt);
-        loginInputPassword = findViewById(R.id.password_input);
-        loginBtn = findViewById(R.id.login_button); // Ensure button ID is set correctly in XML
+        setContentView(R.layout.activity_register);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
 
         // Find the TextView and apply styling
-        registerBtn = findViewById(R.id.register_link);
-        String text = "New to the plateform? Register";
+        loginscreen = findViewById(R.id.login_screen);
+        String text = "Already have an account? Log in";
 
         // Create a SpannableString to style "Log in"
         SpannableString spannable = new SpannableString(text);
         spannable.setSpan(new ForegroundColorSpan(Color.parseColor("#6200EE")), // Purple color
-                text.indexOf("Register"),
+                text.indexOf("Log in"),
                 text.length(),
                 SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
-        registerBtn.setText(spannable);
+        loginscreen.setText(spannable);
 
-        registerBtn.setOnClickListener(new View.OnClickListener() {
+        loginscreen.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent i = new Intent(MainActivity.this,register.class);
+                Intent i = new Intent(register.this, MainActivity.class);
                 startActivity(i);
             }
         });
-
-
-
     }
 }

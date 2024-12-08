@@ -5,7 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/login_background"
+    android:background="#ffffff"
     android:gravity="center"
     android:padding="16dp"
     tools:context=".MainActivity">
@@ -18,22 +18,44 @@
         android:orientation="vertical">
 
         <ImageView
-            android:layout_width="160dp"
-            android:layout_height="160dp"
-            android:src="@drawable/account_logo" />
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/raabtaalogo" />
+
+        <!-- Title -->
+
+        <!-- Subtitle -->
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="RAABTAA"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="One QR, Infinite Possibilities"
+            android:textSize="16sp"
+            android:textColor="#555555"
+            android:gravity="center"
+            android:layout_marginBottom="24dp" />
 
         <EditText
             android:layout_marginLeft="5dp"
             android:layout_marginRight="5dp"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="50dp"
             android:layout_marginTop="32dp"
             android:hint="Username"
-            android:textColor="@color/white"
-            android:textColorHint="@color/white"
-            android:textSize="20sp"
-            android:background="@drawable/rounded_corner"
-            android:padding="18dp"
+            android:textColor="@color/black"
+            android:textColorHint="#808080"
+            android:background="@drawable/rounded_edittext"
+            android:padding="12dp"
             android:inputType="text"
             android:id="@+id/username_inupt" />
 
@@ -42,27 +64,38 @@
             android:layout_marginRight="5dp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:hint="Password"
             android:textColor="@color/white"
-            android:textColorHint="@color/white"
-            android:textSize="20sp"
-            android:background="@drawable/rounded_corner"
-            android:padding="18dp"
+            android:textColorHint="#808080"
+            android:background="@drawable/rounded_edittext"
+            android:padding="12dp"
             android:inputType="textPassword"
             android:id="@+id/password_input" />
 
         <Button
-            android:layout_marginLeft="5dp"
-            android:layout_marginRight="5dp"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:layout_height="50dp"
             android:text="Login"
-            android:backgroundTint="@color/white"
-            android:textColor="#13676B"
-            android:textSize="20sp"
-            android:padding="18dp"
-            android:layout_marginTop="32dp"/>
+            android:drawableStart="@drawable/google"
+            android:background="@drawable/rounded_button_outlined"
+            android:layout_marginBottom="8dp"
+            android:id="@+id/login_button"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:layout_gravity="center"
+            android:textColor="#808080"
+        android:textSize="16sp"
+        android:padding="8dp"
+        android:id="@+id/register_link"
+        android:clickable="true"
+        android:focusable="true" />
+
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -71,32 +104,26 @@
             android:gravity="center">
 
             <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
                 android:layout_margin="16dp"
                 android:src="@drawable/google"/>
 
             <ImageView
-                android:layout_width="70dp"
-                android:layout_height="70dp"
-                android:layout_margin="16dp"
-                android:src="@drawable/linkedin"/>
-
-            <ImageView
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:layout_margin="16dp"
-                android:src="@drawable/facebook"/>
+                android:src="@drawable/apple_icon"/>
 
         </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Powered by Dev"
+            android:text="Continue with"
             android:gravity="center"
-            android:textSize="20sp"
-            android:layout_marginTop="32dp"/>
+            android:textSize="12sp"
+            android:layout_marginTop="0dp"/>
 
     </LinearLayout>
 
