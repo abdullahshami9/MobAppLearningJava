@@ -3,11 +3,15 @@ package com.example.firstapp301124;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.SpannableString;
+import android.text.TextWatcher;
+import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
-import android.util.Log;
+import android.util.Patterns;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -23,7 +27,8 @@ public class register extends AppCompatActivity {
     private LinearLayout dotsIndicator;
     private Button continueButton;
     private int currentPosition = 0;
-    TextView loginscreen;
+    private boolean isEmailValid = false, isPasswordValid = false, isLinkValid = false;
+    private EditText emailField, passwordField, linkField;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,7 +39,6 @@ public class register extends AppCompatActivity {
         dotsIndicator = findViewById(R.id.dotsIndicator);
         continueButton = findViewById(R.id.continue_button);
 
-        // Pass layout resource IDs
         List<Integer> layouts = new ArrayList<>();
         layouts.add(R.layout.input_email);
         layouts.add(R.layout.input_password);
@@ -45,43 +49,37 @@ public class register extends AppCompatActivity {
 
         setupDotsIndicator(layouts.size());
 
+        // Disable swipe scrolling initially
+        viewPager.setUserInputEnabled(false);
+
+        // Disable the continue button initially
+        continueButton.setEnabled(false);
+        continueButton.setBackgroundTintList(getColorStateList(R.color.gray));
+
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
                 currentPosition = position;
                 updateDotsIndicator(position);
+                validateCurrentStep();
             }
         });
 
         continueButton.setOnClickListener(v -> {
             if (currentPosition < layouts.size() - 1) {
                 viewPager.setCurrentItem(currentPosition + 1);
+                validateCurrentStep();
             }
         });
 
-        // Find the TextView and apply styling
-        TextView login_screen;
-        login_screen = findViewById(R.id.login_screen);
-
-        loginscreen = findViewById(R.id.login_screen);
-        if (loginscreen == null) {
-            Log.e("registerActivity", "TextView 'login_screen' is null.");
-        }
-
-        String text = "New to the plateform? Login";
-
-        // Create a SpannableString to style "Log in"
+        TextView loginScreen = findViewById(R.id.login_screen);
+        String text = "New to the platform? Login";
         SpannableString spannable = new SpannableString(text);
-        spannable.setSpan(new ForegroundColorSpan(Color.parseColor("#6200EE")), // Purple color
-                text.indexOf("Login"),
-                text.length(),
-                SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
-        login_screen.setText(spannable);
-
-//        loginscreen = findViewById(R.id.login_screen);
-        loginscreen.setOnClickListener(view -> {
-            Intent i = new Intent(register.this, MainActivity.class);
-            startActivity(i);
+        spannable.setSpan(new ForegroundColorSpan(Color.parseColor("#6200EE")), text.indexOf("Login"), text.length(), 0);
+        loginScreen.setText(spannable);
+        loginScreen.setOnClickListener(v -> {
+            Intent intent = new Intent(register.this, MainActivity.class);
+            startActivity(intent);
         });
     }
 
@@ -103,5 +101,108 @@ public class register extends AppCompatActivity {
             dotsIndicator.getChildAt(i)
                     .setBackgroundResource(i == position ? R.drawable.dot_active : R.drawable.dot_inactive);
         }
+    }
+
+    private void validateCurrentStep() {
+        View currentView = findViewById(viewPager.getCurrentItem() == 0 ? R.id.email_field :
+                viewPager.getCurrentItem() == 1 ? R.id.password_field :
+                        R.id.link_field);
+        switch (currentPosition) {
+            case 0:
+                validateEmailInput(currentView);
+                break;
+            case 1:
+                validatePasswordInput(currentView);
+                break;
+            case 2:
+                validateLinkInput(currentView);
+                break;
+        }
+    }
+
+    private void validateEmailInput(View emailView) {
+        if (emailView != null) {
+            emailField = (EditText) emailView;
+            emailField.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    isEmailValid = !TextUtils.isEmpty(s) && Patterns.EMAIL_ADDRESS.matcher(s).matches();
+                    updateContinueButton();
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+        }
+    }
+
+    private void validatePasswordInput(View passwordView) {
+        if (passwordView != null) {
+            passwordField = (EditText) passwordView;
+            passwordField.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    String password = s.toString();
+
+                    // Validation logic
+                    if (password.isEmpty()) {
+                        isPasswordValid = false;
+                        passwordField.setError("Password cannot be empty");
+                    } else if (password.length() < 5) {
+                        isPasswordValid = false;
+                        passwordField.setError("Password must be at least 5 characters");
+                    } else if (password.length() > 16) {
+                        isPasswordValid = false;
+                        passwordField.setError("Password must not exceed 16 characters");
+                    } else {
+                        isPasswordValid = true;
+                        passwordField.setError(null); // Clear the error
+                    }
+
+                    // Update the continue button based on validation
+                    updateContinueButton();
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+        }
+    }
+
+
+    private void validateLinkInput(View linkView) {
+        if (linkView != null) {
+            linkField = (EditText) linkView;
+            linkField.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    isLinkValid = !TextUtils.isEmpty(s) && Patterns.WEB_URL.matcher(s).matches();
+                    updateContinueButton();
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+        }
+    }
+
+    private void updateContinueButton() {
+        boolean isValid = (currentPosition == 0 && isEmailValid) ||
+                (currentPosition == 1 && isPasswordValid) ||
+                (currentPosition == 2 && isLinkValid);
+        continueButton.setEnabled(isValid);
+        continueButton.setBackgroundTintList(getColorStateList(isValid ? R.color.purple_200 : R.color.gray));
+
+        // Enable scrolling to the next page only when valid
+        viewPager.setUserInputEnabled(isValid);
     }
 }
