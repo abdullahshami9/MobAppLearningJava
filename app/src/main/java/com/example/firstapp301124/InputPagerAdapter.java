@@ -11,21 +11,22 @@ import java.util.List;
 
 public class InputPagerAdapter extends RecyclerView.Adapter<InputPagerAdapter.InputViewHolder> {
 
-    private final List<View> layouts;
+    private final List<Integer> layouts;
 
-    public InputPagerAdapter(List<View> layouts) {
+    public InputPagerAdapter(List<Integer> layouts) {
         this.layouts = layouts;
     }
 
     @NonNull
     @Override
     public InputViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return new InputViewHolder(layouts.get(viewType));
+        View view = LayoutInflater.from(parent.getContext()).inflate(layouts.get(viewType), parent, false);
+        return new InputViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull InputViewHolder holder, int position) {
-        // Binding is not necessary in this case, views are pre-inflated
+        // No binding needed for static layouts.
     }
 
     @Override

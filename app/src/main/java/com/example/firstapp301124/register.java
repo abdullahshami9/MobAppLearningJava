@@ -5,20 +5,14 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
-import android.view.LayoutInflater;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,11 +34,11 @@ public class register extends AppCompatActivity {
         dotsIndicator = findViewById(R.id.dotsIndicator);
         continueButton = findViewById(R.id.continue_button);
 
-        List<View> layouts = new ArrayList<>();
-        LayoutInflater inflater = LayoutInflater.from(this);
-        layouts.add(inflater.inflate(R.layout.input_email, null));
-        layouts.add(inflater.inflate(R.layout.input_password, null));
-        layouts.add(inflater.inflate(R.layout.input_link, null));
+        // Pass layout resource IDs
+        List<Integer> layouts = new ArrayList<>();
+        layouts.add(R.layout.input_email);
+        layouts.add(R.layout.input_password);
+        layouts.add(R.layout.input_link);
 
         InputPagerAdapter adapter = new InputPagerAdapter(layouts);
         viewPager.setAdapter(adapter);
@@ -65,7 +59,26 @@ public class register extends AppCompatActivity {
             }
         });
 
+        // Find the TextView and apply styling
+        TextView login_screen;
+        login_screen = findViewById(R.id.login_screen);
+
         loginscreen = findViewById(R.id.login_screen);
+        if (loginscreen == null) {
+            Log.e("registerActivity", "TextView 'login_screen' is null.");
+        }
+
+        String text = "New to the plateform? Login";
+
+        // Create a SpannableString to style "Log in"
+        SpannableString spannable = new SpannableString(text);
+        spannable.setSpan(new ForegroundColorSpan(Color.parseColor("#6200EE")), // Purple color
+                text.indexOf("Login"),
+                text.length(),
+                SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE);
+        login_screen.setText(spannable);
+
+//        loginscreen = findViewById(R.id.login_screen);
         loginscreen.setOnClickListener(view -> {
             Intent i = new Intent(register.this, MainActivity.class);
             startActivity(i);
