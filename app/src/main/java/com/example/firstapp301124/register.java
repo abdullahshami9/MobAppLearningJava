@@ -81,6 +81,16 @@ public class register extends AppCompatActivity {
             Intent intent = new Intent(register.this, MainActivity.class);
             startActivity(intent);
         });
+
+        TextView dummy = findViewById(R.id.dummy);
+        String text2 = "New to the platform? Login";
+        SpannableString spannable2 = new SpannableString(text2);
+        spannable.setSpan(new ForegroundColorSpan(Color.parseColor("#6200EE")), text2.indexOf("Login"), text2.length(), 0);
+        loginScreen.setText(spannable2);
+        loginScreen.setOnClickListener(v -> {
+            Intent intent = new Intent(register.this, PersonalProfileHome.class);
+            startActivity(intent);
+        });
     }
 
     private void setupDotsIndicator(int count) {

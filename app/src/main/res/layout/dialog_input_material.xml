@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/item_background"
+    android:elevation="8dp">
+
+    <EditText
+        android:id="@+id/inputText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter text"
+        android:padding="12dp"
+        android:textSize="16sp"
+        android:backgroundTint="@color/white"
+        android:textColorHint="@color/black"
+        android:textColor="@color/black"
+        android:inputType="textMultiLine"
+        android:minHeight="100dp"
+        android:gravity="top"
+        android:background="@drawable/edit_text_background" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:paddingTop="16dp">
+
+        <ImageView
+            android:id="@+id/saveIcon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="8dp"
+            android:src="@drawable/plus"
+            android:contentDescription="Save"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:layout_marginEnd="8dp" />
+    </LinearLayout>
+</LinearLayout>
