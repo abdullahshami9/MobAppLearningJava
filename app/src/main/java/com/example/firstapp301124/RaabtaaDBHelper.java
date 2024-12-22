@@ -2,12 +2,13 @@ package com.example.firstapp301124;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
 public class RaabtaaDBHelper extends SQLiteOpenHelper {
-    private static final String DATABASE_NAME = "RaabtaaTest";
+    private static final String DATABASE_NAME = "RaabtaaTest2";
     private static final int DATABASE_VERSION = 1;
 
     private static final String TABLE_USER = "user";
@@ -59,4 +60,25 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
             db.close();
         }
     }
+
+    public User getUser(String email, String password) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        // Use parameterized query to prevent SQL Injection
+        Cursor cursor = db.rawQuery("SELECT name, email, link FROM " + TABLE_USER + " WHERE email = ? AND password = ?",
+                new String[]{email, password});
+
+        if (cursor != null && cursor.moveToFirst()) {
+            // You can map the returned data to your User model
+            String name = cursor.getString(cursor.getColumnIndex("name"));
+            String link = cursor.getString(cursor.getColumnIndex("link"));
+            cursor.close();
+
+            // Return a User object
+            return new User(name, email, link);
+        }
+
+        cursor.close();
+        return null;  // No user found
+    }
+
 }

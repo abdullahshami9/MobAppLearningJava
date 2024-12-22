@@ -8,6 +8,7 @@ import android.text.SpannableString;
 import android.text.TextWatcher;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.util.Patterns;
 import android.view.View;
 import android.widget.Button;
@@ -29,6 +30,9 @@ public class register extends AppCompatActivity {
     private int currentPosition = 0;
     private boolean isEmailValid = false, isPasswordValid = false, isLinkValid = false;
     private EditText emailField, passwordField, linkField;
+
+    // Declare TextWatchers as class-level variables
+    private TextWatcher emailTextWatcher, passwordTextWatcher, linkTextWatcher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +73,21 @@ public class register extends AppCompatActivity {
             if (currentPosition < layouts.size() - 1) {
                 viewPager.setCurrentItem(currentPosition + 1);
                 validateCurrentStep();
+            } else if (currentPosition == layouts.size() - 1) {
+                // All steps are complete, print the values to log
+                String email = emailField.getText().toString().trim();
+                String password = passwordField.getText().toString().trim();
+                String link = linkField.getText().toString().trim();
+
+                // Log the values
+                Log.d("FORM_DATA", "Email: " + email);
+                Log.d("FORM_DATA", "Password: " + password);
+                Log.d("FORM_DATA", "Link: " + link);
+
+                // Navigate to the next activity or show success message
+                Intent intent = new Intent(register.this, PersonalProfileHome.class);
+                startActivity(intent);
+                finish();
             }
         });
 
@@ -79,16 +98,6 @@ public class register extends AppCompatActivity {
         loginScreen.setText(spannable);
         loginScreen.setOnClickListener(v -> {
             Intent intent = new Intent(register.this, MainActivity.class);
-            startActivity(intent);
-        });
-
-        TextView dummy = findViewById(R.id.dummy);
-        String text2 = "New to the platform? Login";
-        SpannableString spannable2 = new SpannableString(text2);
-        spannable.setSpan(new ForegroundColorSpan(Color.parseColor("#6200EE")), text2.indexOf("Login"), text2.length(), 0);
-        loginScreen.setText(spannable2);
-        loginScreen.setOnClickListener(v -> {
-            Intent intent = new Intent(register.this, PersonalProfileHome.class);
             startActivity(intent);
         });
     }
@@ -133,7 +142,9 @@ public class register extends AppCompatActivity {
     private void validateEmailInput(View emailView) {
         if (emailView != null) {
             emailField = (EditText) emailView;
-            emailField.addTextChangedListener(new TextWatcher() {
+
+            // Initialize the TextWatcher for email validation
+            emailTextWatcher = new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
@@ -145,14 +156,18 @@ public class register extends AppCompatActivity {
 
                 @Override
                 public void afterTextChanged(Editable s) {}
-            });
+            };
+
+            emailField.addTextChangedListener(emailTextWatcher);
         }
     }
 
     private void validatePasswordInput(View passwordView) {
         if (passwordView != null) {
             passwordField = (EditText) passwordView;
-            passwordField.addTextChangedListener(new TextWatcher() {
+
+            // Initialize the TextWatcher for password validation
+            passwordTextWatcher = new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
@@ -181,27 +196,46 @@ public class register extends AppCompatActivity {
 
                 @Override
                 public void afterTextChanged(Editable s) {}
-            });
+            };
+
+            passwordField.addTextChangedListener(passwordTextWatcher);
         }
     }
-
 
     private void validateLinkInput(View linkView) {
         if (linkView != null) {
             linkField = (EditText) linkView;
-            linkField.addTextChangedListener(new TextWatcher() {
+
+            // Initialize the TextWatcher for link validation
+            linkTextWatcher = new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
                 @Override
                 public void onTextChanged(CharSequence s, int start, int before, int count) {
-                    isLinkValid = !TextUtils.isEmpty(s) && Patterns.WEB_URL.matcher(s).matches();
+                    String linkText = s.toString().trim();
+
+                    // Check if the link has at least 7 characters and is alphanumeric
+                    if (linkText.length() >= 7 && linkText.matches("[a-zA-Z0-9]+")) {
+                        isLinkValid = true;
+                    } else {
+                        isLinkValid = false;
+                        if (linkText.isEmpty()) {
+                            linkField.setError("Link cannot be empty");
+                        } else {
+                            linkField.setError("Link must be at least 7 characters and alphanumeric");
+                        }
+                    }
+
+                    // Update the continue button
                     updateContinueButton();
                 }
 
                 @Override
                 public void afterTextChanged(Editable s) {}
-            });
+            };
+
+            linkField.addTextChangedListener(linkTextWatcher);
         }
     }
 
@@ -214,5 +248,20 @@ public class register extends AppCompatActivity {
 
         // Enable scrolling to the next page only when valid
         viewPager.setUserInputEnabled(isValid);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Clean up any listeners or resources if necessary
+        if (emailField != null && emailTextWatcher != null) {
+            emailField.removeTextChangedListener(emailTextWatcher);
+        }
+        if (passwordField != null && passwordTextWatcher != null) {
+            passwordField.removeTextChangedListener(passwordTextWatcher);
+        }
+        if (linkField != null && linkTextWatcher != null) {
+            linkField.removeTextChangedListener(linkTextWatcher);
+        }
     }
 }
