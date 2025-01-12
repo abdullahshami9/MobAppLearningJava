@@ -15,7 +15,8 @@
 <!--        <activity-->
 <!--            android:name="."-->
 <!--            android:exported="false" />-->
-        <activity android:name=".PersonalProfileHome" />
+        <activity
+            android:name=".PersonalProfileHome"/>
 
         <activity
             android:name=".profile_type"

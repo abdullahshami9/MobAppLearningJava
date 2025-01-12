@@ -6,4 +6,17 @@
         <item name="android:windowElevation">8dp</item>
         <item name="android:backgroundDimEnabled">true</item> <!-- Optional: Dim background -->
     </style>
+
+    <style name="CircularImage">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item> <!-- This makes the image round -->
+    </style>
+
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/darker_gray</item>
+    </style>
+
+
+
+
 </resources>

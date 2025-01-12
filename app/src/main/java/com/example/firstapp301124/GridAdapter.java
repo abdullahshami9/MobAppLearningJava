@@ -12,7 +12,7 @@ import java.util.List;
 
 public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
 
-    private final List<String> dataList;
+    private List<String> dataList;
     private final OnItemClickListener onItemClickListener;
 
     public GridAdapter(List<String> dataList, OnItemClickListener onItemClickListener) {
@@ -36,6 +36,12 @@ public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
     @Override
     public int getItemCount() {
         return dataList.size();
+    }
+
+    // Add updateData() method
+    public void updateData(List<String> newDataList) {
+        this.dataList = newDataList;
+        notifyDataSetChanged();  // Notify the adapter that the data has changed
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

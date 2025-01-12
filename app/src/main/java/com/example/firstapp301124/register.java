@@ -2,6 +2,7 @@ package com.example.firstapp301124;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.SpannableString;
@@ -36,6 +37,15 @@ public class register extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Change status bar color to white
+            getWindow().setStatusBarColor(Color.WHITE);
+
+            // Change the status bar content (battery, time, etc.) to black
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 

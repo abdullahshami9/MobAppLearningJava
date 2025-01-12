@@ -2,24 +2,33 @@ package com.example.firstapp301124;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
+import android.widget.Toolbar;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.navigation.NavigationView;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,17 +42,73 @@ public class PersonalProfileHome extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Change status bar color to white
+            getWindow().setStatusBarColor(Color.WHITE);
+
+            // Change the status bar content (battery, time, etc.) to black
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
+
+
         super.onCreate(savedInstanceState);
 
-        // Enable edge-to-edge rendering
-        EdgeToEdge.enable(this);
+        // Check if ActionBar is not null before hiding it
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.hide();  // Hide the ActionBar if it exists
+        }
+
         setContentView(R.layout.activity_personal_profile_home);
 
-        // Set up edge-to-edge padding
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
+        // Initialize views
+        DrawerLayout drawerLayout = findViewById(R.id.drawerLayout);
+        NavigationView navigationView = findViewById(R.id.navigationView);
+        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        EditText searchBar = toolbar.findViewById(R.id.searchBar);
+        ImageView menuIcon = toolbar.findViewById(R.id.menuIcon);
+        ImageView profileIcon = toolbar.findViewById(R.id.profileIcon);
+
+        // Setup menu icon to toggle drawer
+        menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
+
+        // Setup navigation menu item click
+        navigationView.setNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+
+            if (id == R.id.nav_item1) {
+                Toast.makeText(this, "Home clicked", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_item2) {
+                Toast.makeText(this, "Settings clicked", Toast.LENGTH_SHORT).show();
+            } else if (id == R.id.nav_item3) {
+                Toast.makeText(this, "About clicked", Toast.LENGTH_SHORT).show();
+            }
+
+            drawerLayout.closeDrawer(GravityCompat.START);
+            return true;
+        });
+
+        // Setup profile icon click
+        profileIcon.setOnClickListener(v -> {
+            Toast.makeText(this, "Profile clicked", Toast.LENGTH_SHORT).show();
+        });
+
+        // Setup search functionality
+        searchBar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String query = s.toString();
+                // Implement search logic (filter RecyclerView or other content)
+                Toast.makeText(PersonalProfileHome.this, "Searching: " + query, Toast.LENGTH_SHORT).show();
+                filterRecyclerView(query);
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
         });
 
         // Initialize RecyclerView and FAB
@@ -92,6 +157,19 @@ public class PersonalProfileHome extends AppCompatActivity {
 
         itemTouchHelper.attachToRecyclerView(recyclerView);
     }
+
+    private void filterRecyclerView(String query) {
+        // Implement the search logic to filter the RecyclerView based on the query
+        List<String> filteredList = new ArrayList<>();
+        for (String item : dataList) {
+            if (item.toLowerCase().contains(query.toLowerCase())) {
+                filteredList.add(item);
+            }
+        }
+        gridAdapter.updateData(filteredList);
+    }
+
+
 
     private void openAddModal() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);

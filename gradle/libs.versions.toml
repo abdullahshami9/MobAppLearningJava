@@ -18,7 +18,5 @@ activity = { group = "androidx.activity", name = "activity", version.ref = "acti
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version = "1.0.0" }
 
-
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-
