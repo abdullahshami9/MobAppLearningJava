@@ -38,6 +38,9 @@ public class register extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this); // Apply theme before setContentView
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_register);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             // Change status bar color to white
@@ -54,9 +57,6 @@ public class register extends AppCompatActivity {
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
-
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_register);
 
         viewPager = findViewById(R.id.viewPager);
         dotsIndicator = findViewById(R.id.dotsIndicator);

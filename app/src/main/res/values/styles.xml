@@ -13,6 +13,11 @@
     </style>
 
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/app_colorPrimary</item>
+        <item name="colorPrimaryDark">@color/app_colorPrimaryDark</item>
+        <item name="colorAccent">@color/app_colorAccent</item>
+        <item name="app_background">@color/app_background</item>
+        <item name="app_textColor">@color/app_textColor</item>
         <item name="android:statusBarColor">@android:color/darker_gray</item>
     </style>
 

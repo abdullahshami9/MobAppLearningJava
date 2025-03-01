@@ -1,131 +1,144 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#ffffff"
-    android:gravity="center"
-    android:padding="16dp"
     tools:context=".MainActivity">
 
-
-    <LinearLayout
+    <!-- Main content -->
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
+        android:background="@color/app_background"
         android:gravity="center"
-        android:orientation="vertical">
-
-        <ImageView
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:src="@drawable/raabtaalogo" />
-
-        <!-- Title -->
-
-        <!-- Subtitle -->
-
-        <TextView
-            android:id="@+id/title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="RAABTAA"
-            android:textSize="22sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="One QR, Infinite Possibilities"
-            android:textSize="16sp"
-            android:textColor="#555555"
-            android:gravity="center"
-            android:layout_marginBottom="24dp" />
-
-        <EditText
-            android:layout_marginLeft="5dp"
-            android:layout_marginRight="5dp"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_marginTop="32dp"
-            android:hint="Username"
-            android:textColor="@color/black"
-            android:textColorHint="#808080"
-            android:background="@drawable/rounded_edittext"
-            android:padding="12dp"
-            android:inputType="text"
-            android:id="@+id/username_inupt" />
-
-        <EditText
-            android:layout_marginLeft="5dp"
-            android:layout_marginRight="5dp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="Password"
-            android:textColor="@color/white"
-            android:textColorHint="#808080"
-            android:background="@drawable/rounded_edittext"
-            android:padding="12dp"
-            android:inputType="textPassword"
-            android:id="@+id/password_input" />
-
-        <Button
-            android:layout_width="match_parent"
-            android:layout_marginTop="32dp"
-            android:layout_height="50dp"
-            android:text="Login"
-            android:drawableStart="@drawable/google"
-            android:background="@drawable/rounded_button_outlined"
-            android:layout_marginBottom="8dp"
-            android:id="@+id/login_button"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:layout_gravity="center"
-            android:textColor="#808080"
-        android:textSize="16sp"
-        android:padding="8dp"
-        android:id="@+id/register_link"
-        android:clickable="true"
-        android:focusable="true" />
-
+        android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="70dp"
-            android:gravity="center">
+            android:gravity="center"
+            android:orientation="vertical">
 
             <ImageView
-                android:layout_width="50dp"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/raabtaalogo" />
+
+            <!-- Title -->
+
+            <!-- Subtitle -->
+
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="RAABTAA"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="One QR, Infinite Possibilities"
+                android:textSize="16sp"
+                android:textColor="#555555"
+                android:gravity="center"
+                android:layout_marginBottom="24dp" />
+
+            <EditText
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:layout_width="match_parent"
                 android:layout_height="50dp"
-                android:layout_margin="16dp"
-                android:src="@drawable/google"/>
+                android:layout_marginTop="32dp"
+                android:hint="Username"
+                android:textColor="@color/black"
+                android:textColorHint="#808080"
+                android:background="@drawable/rounded_edittext"
+                android:padding="12dp"
+                android:inputType="text"
+                android:id="@+id/username_inupt" />
 
-            <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:layout_margin="16dp"
-                android:src="@drawable/apple_icon"/>
+            <EditText
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Password"
+                android:textColor="@color/white"
+                android:textColorHint="#808080"
+                android:background="@drawable/rounded_edittext"
+                android:padding="12dp"
+                android:inputType="textPassword"
+                android:id="@+id/password_input" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_marginTop="32dp"
+                android:layout_height="50dp"
+                android:text="Login"
+                android:drawableStart="@drawable/google"
+                android:background="@drawable/rounded_button_outlined"
+                android:layout_marginBottom="8dp"
+                android:id="@+id/login_button"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:layout_gravity="center"
+                android:textColor="#808080"
+            android:textSize="16sp"
+            android:padding="8dp"
+            android:id="@+id/register_link"
+            android:clickable="true"
+            android:focusable="true" />
+
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="70dp"
+                android:gravity="center">
+
+                <ImageView
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_margin="16dp"
+                    android:src="@drawable/google"/>
+
+                <ImageView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:layout_margin="16dp"
+                    android:src="@drawable/apple_icon"/>
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Continue with"
+                android:gravity="center"
+                android:textSize="16sp"
+                android:layout_marginTop="0dp"/>
 
         </LinearLayout>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Continue with"
-            android:gravity="center"
-            android:textSize="16sp"
-            android:layout_marginTop="0dp"/>
+    </RelativeLayout>
 
-    </LinearLayout>
+    <!-- Navigation drawer -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/nav_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        app:menu="@menu/drawer_menu" />
 
-
-</RelativeLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

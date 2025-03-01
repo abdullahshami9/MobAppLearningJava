@@ -2,7 +2,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="@color/app_background"
     android:gravity="center_horizontal"
     android:orientation="vertical"
     android:padding="20dp">
@@ -142,7 +142,5 @@
         android:layout_gravity="center"
         android:textColor="#808080"
         android:layout_marginTop="32dp" />
-
-
 
 </LinearLayout>

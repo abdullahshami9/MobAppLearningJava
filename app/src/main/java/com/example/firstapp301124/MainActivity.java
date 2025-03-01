@@ -8,12 +8,15 @@ import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
 import android.util.Log;
+import android.view.MenuItem;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import com.google.android.material.navigation.NavigationView;
 
 import android.view.View;
 import android.widget.EditText;
@@ -21,7 +24,7 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
     private static final String TAG = "MainActivity";
 
@@ -31,7 +34,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
+        ThemeHelper.applyTheme(this); // Apply theme before setContentView
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             // Change status bar color to white
             getWindow().setStatusBarColor(Color.WHITE);
@@ -97,7 +100,29 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Initialize navigation drawer
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
 
+        // Set initial state of dark mode toggle
+        MenuItem darkModeItem = navigationView.getMenu().findItem(R.id.nav_dark_mode);
+        darkModeItem.setChecked(ThemeHelper.isDarkTheme(this));
+    }
 
+    @Override
+    public boolean onNavigationItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.nav_dark_mode) {
+            boolean isChecked = !item.isChecked();
+            item.setChecked(isChecked);
+            ThemeHelper.setTheme(this, isChecked);
+            recreate(); // Restart activity to apply theme
+            return true;
+        }
+
+        // Handle other menu items
+        return false;
     }
 }

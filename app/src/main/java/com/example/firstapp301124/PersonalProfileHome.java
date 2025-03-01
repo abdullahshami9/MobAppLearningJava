@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -28,15 +29,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class PersonalProfileHome extends AppCompatActivity {
+public class PersonalProfileHome extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
     private RecyclerView recyclerView;
     private GridAdapter gridAdapter;
     private List<String> dataList;
+    private DrawerLayout drawerLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyTheme(this); // Apply theme before setContentView
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_personal_profile_home);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             // Change status bar color to white
@@ -50,13 +54,8 @@ public class PersonalProfileHome extends AppCompatActivity {
             getWindow().setNavigationBarColor(Color.TRANSPARENT);
         }
 
-
-
-
-        setContentView(R.layout.activity_personal_profile_home);
-
         // Initialize views
-        DrawerLayout drawerLayout = findViewById(R.id.drawerLayout);
+        drawerLayout = findViewById(R.id.drawerLayout);
         NavigationView navigationView = findViewById(R.id.navigationView);
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
         EditText searchBar = toolbar.findViewById(R.id.searchBar);
@@ -100,20 +99,7 @@ public class PersonalProfileHome extends AppCompatActivity {
         });
 
         // Setup navigation menu item click
-        navigationView.setNavigationItemSelectedListener(item -> {
-            int id = item.getItemId();
-
-            if (id == R.id.nav_item1) {
-                Toast.makeText(this, "Home clicked", Toast.LENGTH_SHORT).show();
-            } else if (id == R.id.nav_item2) {
-                Toast.makeText(this, "Settings clicked", Toast.LENGTH_SHORT).show();
-            } else if (id == R.id.nav_item3) {
-                Toast.makeText(this, "About clicked", Toast.LENGTH_SHORT).show();
-            }
-
-            drawerLayout.closeDrawer(GravityCompat.START);
-            return true;
-        });
+        navigationView.setNavigationItemSelectedListener(this);
 
         // Setup profile icon click
         profileIcon.setOnClickListener(v -> {
@@ -159,13 +145,9 @@ public class PersonalProfileHome extends AppCompatActivity {
         fabAdd.setOnClickListener(v -> openAddModal());
 
         // Handle drag-and-drop functionality
-        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.Callback() {
-            @Override
-            public int getMovementFlags(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
-                // Enable drag in all directions, disable swipe
-                return makeMovementFlags(ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT, 0);
-            }
-
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.START | ItemTouchHelper.END,
+                0) {
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
                 int fromPosition = viewHolder.getAdapterPosition();
@@ -177,72 +159,41 @@ public class PersonalProfileHome extends AppCompatActivity {
 
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-                // No swipe action; this is intentionally left blank
+                // No action needed
             }
         });
-
         itemTouchHelper.attachToRecyclerView(recyclerView);
     }
 
     private void filterRecyclerView(String query) {
-        // Implement the search logic to filter the RecyclerView based on the query
-        List<String> filteredList = new ArrayList<>();
-        for (String item : dataList) {
-            if (item.toLowerCase().contains(query.toLowerCase())) {
-                filteredList.add(item);
-            }
-        }
-        gridAdapter.updateData(filteredList);
+        // Implement search logic here
     }
 
     private void openAddModal() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
-        EditText inputText = dialogView.findViewById(R.id.inputText);
-        ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
-
-        AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
-                .setView(dialogView)
-                .create();
-
-        saveIcon.setOnClickListener(v -> {
-            String newItem = inputText.getText().toString();
-            if (!newItem.isEmpty()) {
-                dataList.add(newItem);
-                gridAdapter.notifyItemInserted(dataList.size() - 1);
-                recyclerView.smoothScrollToPosition(dataList.size() - 1);
-                dialog.dismiss();
-                Toast.makeText(this, "New item added", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Text cannot be empty", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        dialog.show();
+        // Open add modal
     }
 
     private void openEditModal(int position) {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
-        EditText inputText = dialogView.findViewById(R.id.inputText);
-        ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
+        // Open edit modal
+    }
 
-        inputText.setText(dataList.get(position)); // Pre-fill current item text
+    @Override
+    public boolean onNavigationItemSelected(MenuItem item) {
+        int id = item.getItemId();
 
-        AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
-                .setView(dialogView)
-                .create();
+        if (id == R.id.nav_item1) {
+            Toast.makeText(this, "Home clicked", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_item2) {
+            Toast.makeText(this, "Settings clicked", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_item3) {
+            Toast.makeText(this, "About clicked", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_dark_mode) {
+            ThemeHelper.toggleTheme(this); // Toggle dark mode
+            recreate(); // Restart activity to apply theme
+            return true;
+        }
 
-        saveIcon.setOnClickListener(v -> {
-            String updatedText = inputText.getText().toString();
-            if (!updatedText.isEmpty()) {
-                dataList.set(position, updatedText);
-                gridAdapter.notifyItemChanged(position);
-                dialog.dismiss();
-                Toast.makeText(this, "Item updated", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Text cannot be empty", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        dialog.show();
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
     }
 }

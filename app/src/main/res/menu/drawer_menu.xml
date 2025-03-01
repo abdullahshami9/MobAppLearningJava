@@ -3,4 +3,12 @@
     <item android:id="@+id/nav_item1" android:title="Home" android:icon="@drawable/ic_home" />
     <item android:id="@+id/nav_item2" android:title="Settings" android:icon="@drawable/ic_settings" />
     <item android:id="@+id/nav_item3" android:title="About" android:icon="@drawable/ic_info" />
+    
+    <!-- Dark Mode Toggle -->
+    <item
+        android:id="@+id/nav_dark_mode"
+        android:title="Dark Mode"
+        android:icon="@drawable/ic_dark_mode"
+        android:checkable="true"
+        android:checked="false" />
 </menu>
