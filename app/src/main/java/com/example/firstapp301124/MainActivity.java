@@ -60,8 +60,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         String username = loginInputUsername.getText().toString().trim();
         String password = loginInputPassword.getText().toString().trim();
 
-        RaabtaaDBHelper db = new RaabtaaDBHelper(this);
-        User user = db.getUser(username,password);
+        // Initialize the database helper
+        RaabtaaDBHelper dbHelper = new RaabtaaDBHelper(this);
+        SQLiteDatabase db = dbHelper.getWritableDatabase(); // Ensure database is created
+
+        User user = dbHelper.getUser(username,password);
         loginBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {

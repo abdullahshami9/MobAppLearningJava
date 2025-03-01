@@ -112,15 +112,11 @@ public class register extends AppCompatActivity {
                 Log.d("FORM_DATA", "Link: " + link);
 
                 String name = "test";
+                String usageType = "personal";
                 Date dob = new Date();
 
-//                continueButton.setOnClickListener(new View.OnClickListener() {
-//                    @Override
-//                    public void onClick(View view) {
-                        RaabtaaDBHelper db= new RaabtaaDBHelper(register.this);
-                        db.addUser(name,email,password,link,name);
-//                    }
-//                });
+                RaabtaaDBHelper db= new RaabtaaDBHelper(register.this);
+                db.addUser(name, email, password, "dummy/link", usageType);
 
                 // Navigate to the next activity or show success message
                 Intent intent = new Intent(register.this, PersonalProfileHome.class);
