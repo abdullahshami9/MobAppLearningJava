@@ -36,4 +36,13 @@ public class ThemeHelper {
         boolean isDarkTheme = isDarkTheme(context);
         setTheme(context, !isDarkTheme);
     }
+
+    /**
+     * Returns the currently applied theme
+     * @param context The context to check the theme
+     * @return String representing the current theme ("Dark" or "Light")
+     */
+    public static String getCurrentTheme(Context context) {
+        return isDarkTheme(context) ? "Dark" : "Light";
+    }
 } 

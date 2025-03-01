@@ -42,20 +42,19 @@ public class register extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
+        // Set status and navigation bar colors based on theme
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Change status bar color to white
-            getWindow().setStatusBarColor(Color.WHITE);
-
-            // Change the status bar content (battery, time, etc.) to black
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Change navigation bar color to white
-            getWindow().setNavigationBarColor(Color.WHITE);
-
-            // Change the navigation bar icons to black for visibility
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            if (ThemeHelper.isDarkTheme(this)) {
+                // Dark theme - set both bars to black
+                getWindow().setStatusBarColor(Color.BLACK);
+                getWindow().setNavigationBarColor(Color.BLACK);
+                getWindow().getDecorView().setSystemUiVisibility(0); // Clear light status bar flag
+            } else {
+                // Light theme - set both bars to white
+                getWindow().setStatusBarColor(Color.WHITE);
+                getWindow().setNavigationBarColor(Color.WHITE);
+                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            }
         }
 
         viewPager = findViewById(R.id.viewPager);

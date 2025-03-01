@@ -1,6 +1,7 @@
 package com.example.firstapp301124;
 
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.DialogInterface;
 import android.graphics.Color;
 import android.os.Build;
@@ -10,6 +11,7 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -17,10 +19,12 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
+import androidx.core.view.ViewCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
@@ -42,16 +46,19 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_personal_profile_home);
 
+        // Set status and navigation bar colors based on theme
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Change status bar color to white
-            getWindow().setStatusBarColor(Color.WHITE);
-
-            // Change the status bar content (battery, time, etc.) to black
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Change navigation bar color to white
-            getWindow().setNavigationBarColor(Color.TRANSPARENT);
+            if (ThemeHelper.isDarkTheme(this)) {
+                // Dark theme - set both bars to black
+                getWindow().setStatusBarColor(Color.BLACK);
+                getWindow().setNavigationBarColor(Color.BLACK);
+                getWindow().getDecorView().setSystemUiVisibility(0); // Clear light status bar flag
+            } else {
+                // Light theme - set both bars to white
+                getWindow().setStatusBarColor(Color.WHITE);
+                getWindow().setNavigationBarColor(Color.WHITE);
+                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            }
         }
 
         // Initialize views
@@ -70,13 +77,10 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         // Add a DrawerListener to ensure the status bar stays visible
         drawerLayout.addDrawerListener(new DrawerLayout.DrawerListener() {
             @Override
-            public void onDrawerSlide(@NonNull View drawerView, float slideOffset) {
-                // No action needed
-            }
+            public void onDrawerSlide(@NonNull View drawerView, float slideOffset) {}
 
             @Override
             public void onDrawerOpened(@NonNull View drawerView) {
-                // Keep status bar visible and white
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     getWindow().setStatusBarColor(Color.WHITE);
                     getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
@@ -85,7 +89,6 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
             @Override
             public void onDrawerClosed(@NonNull View drawerView) {
-                // Keep status bar visible and white
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     getWindow().setStatusBarColor(Color.WHITE);
                     getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
@@ -93,9 +96,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             }
 
             @Override
-            public void onDrawerStateChanged(int newState) {
-                // No action needed
-            }
+            public void onDrawerStateChanged(int newState) {}
         });
 
         // Setup navigation menu item click
@@ -138,7 +139,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         recyclerView.setLayoutManager(gridLayoutManager);
 
         // Set up adapter
-        gridAdapter = new GridAdapter(dataList, this::openEditModal);
+        gridAdapter = new GridAdapter(dataList, PersonalProfileHome.this::showEditModal);
         recyclerView.setAdapter(gridAdapter);
 
         // Handle Floating Action Button click
@@ -166,15 +167,71 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     }
 
     private void filterRecyclerView(String query) {
-        // Implement search logic here
+        // Implement the search logic to filter the RecyclerView based on the query
+        List<String> filteredList = new ArrayList<>();
+        for (String item : dataList) {
+            if (item.toLowerCase().contains(query.toLowerCase())) {
+                filteredList.add(item);
+            }
+        }
+        gridAdapter.updateData(filteredList);
     }
 
     private void openAddModal() {
-        // Open add modal
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
+        EditText inputText = dialogView.findViewById(R.id.inputText);
+        ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
+
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
+                .setView(dialogView)
+                .create();
+
+        saveIcon.setOnClickListener(v -> {
+            String newItem = inputText.getText().toString();
+            if (!newItem.isEmpty()) {
+                dataList.add(newItem);
+                gridAdapter.notifyItemInserted(dataList.size() - 1);
+                recyclerView.smoothScrollToPosition(dataList.size() - 1);
+                dialog.dismiss();
+                Toast.makeText(this, "New item added", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Text cannot be empty", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        dialog.show();
     }
 
-    private void openEditModal(int position) {
-        // Open edit modal
+    private void showEditModal(int position) {
+        // Inflate the same layout used for add modal
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
+        EditText inputText = dialogView.findViewById(R.id.inputText);
+        ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
+
+        // Pre-fill the input with current value
+        inputText.setText(dataList.get(position));
+
+        // Create the dialog with the same style
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
+                .setView(dialogView)
+                .create();
+
+        // Set click listener for save button
+        saveIcon.setOnClickListener(v -> {
+            String newValue = inputText.getText().toString();
+            if (!newValue.isEmpty()) {
+                // Update the item in the list
+                dataList.set(position, newValue);
+                gridAdapter.notifyItemChanged(position);
+                dialog.dismiss();
+                Toast.makeText(PersonalProfileHome.this, "Item updated", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(PersonalProfileHome.this, "Text cannot be empty", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Show the dialog
+        dialog.show();
     }
 
     @Override
