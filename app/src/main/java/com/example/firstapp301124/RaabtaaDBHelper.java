@@ -6,9 +6,12 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
+import android.widget.Toast;
+
+import java.util.Date;
 
 public class RaabtaaDBHelper extends SQLiteOpenHelper {
-    private static final String DATABASE_NAME = "RaabtaaTest2";
+    private static final String DATABASE_NAME = "RaabtaaTest2.db";
     private static final int DATABASE_VERSION = 1;
 
     private static final String TABLE_USER = "user";
@@ -20,8 +23,11 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
     private static final String KEY_DOB = "dob";
     private static final String KEY_REG_DATE = "registration_date";
 
+    private final Context context;
+
     public RaabtaaDBHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
+        this.context = context;
     }
 
     @Override
@@ -54,6 +60,7 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
 
         try {
             db.insert(TABLE_USER, null, values);
+            Toast.makeText(context, "You are Registered", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Log.e("DB_ERROR", "User insertion failed: " + e.getMessage());
         } finally {

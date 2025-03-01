@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class register extends AppCompatActivity {
@@ -44,6 +45,14 @@ public class register extends AppCompatActivity {
 
             // Change the status bar content (battery, time, etc.) to black
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Change navigation bar color to white
+            getWindow().setNavigationBarColor(Color.WHITE);
+
+            // Change the navigation bar icons to black for visibility
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
 
         super.onCreate(savedInstanceState);
@@ -76,8 +85,17 @@ public class register extends AppCompatActivity {
                 currentPosition = position;
                 updateDotsIndicator(position);
                 validateCurrentStep();
+
+                // Disable swipe if password is invalid in step 1
+                if (currentPosition == 1 && !isPasswordValid) {
+                    // Disable swipe to the next page if password is invalid
+                    viewPager.setUserInputEnabled(false);
+                } else {
+                    viewPager.setUserInputEnabled(true);
+                }
             }
         });
+
 
         continueButton.setOnClickListener(v -> {
             if (currentPosition < layouts.size() - 1) {
@@ -85,14 +103,25 @@ public class register extends AppCompatActivity {
                 validateCurrentStep();
             } else if (currentPosition == layouts.size() - 1) {
                 // All steps are complete, print the values to log
-                String email = emailField.getText().toString().trim();
-                String password = passwordField.getText().toString().trim();
-                String link = linkField.getText().toString().trim();
+                String email = emailField != null ? emailField.getText().toString().trim() : "";
+                String password = passwordField != null ? passwordField.getText().toString().trim() : "";
+                String link = linkField != null ? linkField.getText().toString().trim() : "";
 
                 // Log the values
                 Log.d("FORM_DATA", "Email: " + email);
                 Log.d("FORM_DATA", "Password: " + password);
                 Log.d("FORM_DATA", "Link: " + link);
+
+                String name = "test";
+                Date dob = new Date();
+
+//                continueButton.setOnClickListener(new View.OnClickListener() {
+//                    @Override
+//                    public void onClick(View view) {
+                        RaabtaaDBHelper db= new RaabtaaDBHelper(register.this);
+                        db.addUser(name,email,password,link,name);
+//                    }
+//                });
 
                 // Navigate to the next activity or show success message
                 Intent intent = new Intent(register.this, PersonalProfileHome.class);
@@ -149,6 +178,21 @@ public class register extends AppCompatActivity {
         }
     }
 
+//    @Override
+//    public void onPageSelected(int position) {
+//        currentPosition = position;
+//        updateDotsIndicator(position);
+//        validateCurrentStep();
+//
+//        // Disable swipe if password is invalid in step 1
+//        if (currentPosition == 1 && !isPasswordValid) {
+//            // Disable swipe to the next page if password is invalid
+//            viewPager.setUserInputEnabled(false);
+//        } else {
+//            viewPager.setUserInputEnabled(true);
+//        }
+//    }
+
     private void validateEmailInput(View emailView) {
         if (emailView != null) {
             emailField = (EditText) emailView;
@@ -175,6 +219,7 @@ public class register extends AppCompatActivity {
     private void validatePasswordInput(View passwordView) {
         if (passwordView != null) {
             passwordField = (EditText) passwordView;
+            Log.d("DEBUG", "Password field initialized: " + (passwordField != null));
 
             // Initialize the TextWatcher for password validation
             passwordTextWatcher = new TextWatcher() {
@@ -208,7 +253,7 @@ public class register extends AppCompatActivity {
                 public void afterTextChanged(Editable s) {}
             };
 
-            passwordField.addTextChangedListener(passwordTextWatcher);
+            passwordField.addTextChangedListener(passwordTextWatcher); // Ensure this is properly added
         }
     }
 

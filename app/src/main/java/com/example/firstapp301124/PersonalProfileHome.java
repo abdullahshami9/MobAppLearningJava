@@ -12,16 +12,10 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
-import android.widget.Toolbar;
 
-import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
@@ -42,6 +36,7 @@ public class PersonalProfileHome extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             // Change status bar color to white
@@ -50,15 +45,13 @@ public class PersonalProfileHome extends AppCompatActivity {
             // Change the status bar content (battery, time, etc.) to black
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
-
-
-        super.onCreate(savedInstanceState);
-
-        // Check if ActionBar is not null before hiding it
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.hide();  // Hide the ActionBar if it exists
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Change navigation bar color to white
+            getWindow().setNavigationBarColor(Color.TRANSPARENT);
         }
+
+
+
 
         setContentView(R.layout.activity_personal_profile_home);
 
@@ -71,7 +64,40 @@ public class PersonalProfileHome extends AppCompatActivity {
         ImageView profileIcon = toolbar.findViewById(R.id.profileIcon);
 
         // Setup menu icon to toggle drawer
-        menuIcon.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
+        menuIcon.setOnClickListener(v -> {
+            drawerLayout.openDrawer(GravityCompat.START);
+        });
+
+        // Add a DrawerListener to ensure the status bar stays visible
+        drawerLayout.addDrawerListener(new DrawerLayout.DrawerListener() {
+            @Override
+            public void onDrawerSlide(@NonNull View drawerView, float slideOffset) {
+                // No action needed
+            }
+
+            @Override
+            public void onDrawerOpened(@NonNull View drawerView) {
+                // Keep status bar visible and white
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    getWindow().setStatusBarColor(Color.WHITE);
+                    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+                }
+            }
+
+            @Override
+            public void onDrawerClosed(@NonNull View drawerView) {
+                // Keep status bar visible and white
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    getWindow().setStatusBarColor(Color.WHITE);
+                    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+                }
+            }
+
+            @Override
+            public void onDrawerStateChanged(int newState) {
+                // No action needed
+            }
+        });
 
         // Setup navigation menu item click
         navigationView.setNavigationItemSelectedListener(item -> {
@@ -169,8 +195,6 @@ public class PersonalProfileHome extends AppCompatActivity {
         gridAdapter.updateData(filteredList);
     }
 
-
-
     private void openAddModal() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
         EditText inputText = dialogView.findViewById(R.id.inputText);
@@ -221,5 +245,4 @@ public class PersonalProfileHome extends AppCompatActivity {
 
         dialog.show();
     }
-
 }
