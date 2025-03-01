@@ -1,0 +1,11 @@
+<Switch xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dark_mode_switch"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:thumb="@drawable/dark_mode_toggle_thumb"
+    android:track="@drawable/dark_mode_toggle_track"
+    android:showText="false"
+    android:splitTrack="false"
+    android:switchMinWidth="48dp"
+    android:switchPadding="8dp"
+    android:theme="@style/DarkModeToggleStyle"/> 

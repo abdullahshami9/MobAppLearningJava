@@ -3,4 +3,7 @@
         <attr name="app_background" format="color|reference" />
         <attr name="app_textColor" format="color|reference" />
     </declare-styleable>
+    <declare-styleable name="ThemeAttributes">
+        <attr name="drawerBackground" format="reference|color"/>
+    </declare-styleable>
 </resources> 

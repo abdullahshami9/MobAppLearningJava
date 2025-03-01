@@ -1,14 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/nav_item1" android:title="Home" android:icon="@drawable/ic_home" />
-    <item android:id="@+id/nav_item2" android:title="Settings" android:icon="@drawable/ic_settings" />
-    <item android:id="@+id/nav_item3" android:title="About" android:icon="@drawable/ic_info" />
-    
-    <!-- Dark Mode Toggle -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_item1"
+            android:icon="@drawable/ic_home"
+            android:title="Home"
+            android:checked="true"/>
+            
+        <item
+            android:id="@+id/nav_item2"
+            android:icon="@drawable/ic_settings"
+            android:title="Settings"/>
+            
+        <item
+            android:id="@+id/nav_item3"
+            android:icon="@drawable/ic_info"
+            android:title="About"/>
+    </group>
+
+    <item android:title="Appearance">
+        <menu>
+            <item
+                android:id="@+id/nav_dark_mode"
+                android:title="Dark Mode"
+                android:actionLayout="@layout/dark_mode_toggle"
+                android:checkable="true"/>
+        </menu>
+    </item>
+
     <item
-        android:id="@+id/nav_dark_mode"
-        android:title="Dark Mode"
-        android:icon="@drawable/ic_dark_mode"
-        android:checkable="true"
-        android:checked="false" />
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+    <item
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+    <item
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+    <item
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+    <item
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+    <item
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+    <item
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+    <item
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+    <item
+        android:id="@+id/nav_separator"
+        android:title=""
+        android:enabled="false"
+        android:icon="@android:color/transparent"
+        android:checkable="false"
+        android:orderInCategory="1000"/>
+
+
+    <item
+        android:id="@+id/nav_sign_out"
+        android:title="Sign Out"
+        android:icon="@drawable/ic_sign_out"
+        android:iconTint="@color/sign_out_color"
+        android:titleTextColor="@color/sign_out_color"
+        android:orderInCategory="1001"/>
 </menu>

@@ -17,12 +17,16 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.switchmaterial.SwitchMaterial;
+import androidx.core.view.MenuItemCompat;
 
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.core.view.GravityCompat;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -107,22 +111,59 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         // Set initial state of dark mode toggle
         MenuItem darkModeItem = navigationView.getMenu().findItem(R.id.nav_dark_mode);
-        darkModeItem.setChecked(ThemeHelper.isDarkTheme(this));
+        if (darkModeItem != null) {
+            View actionView = MenuItemCompat.getActionView(darkModeItem);
+            if (actionView != null) {
+                SwitchMaterial darkModeSwitch = actionView.findViewById(R.id.dark_mode_switch);
+                if (darkModeSwitch != null) {
+                    boolean isDarkTheme = ThemeHelper.isDarkTheme(this);
+                    darkModeSwitch.setChecked(isDarkTheme);
+                    updateDarkModeText(darkModeItem, isDarkTheme);
+                    
+                    darkModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                        ThemeHelper.setTheme(this, isChecked);
+                        updateDarkModeText(darkModeItem, isChecked);
+                        recreate();
+                    });
+                }
+            }
+        }
     }
 
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
         int id = item.getItemId();
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
 
         if (id == R.id.nav_dark_mode) {
             boolean isChecked = !item.isChecked();
             item.setChecked(isChecked);
             ThemeHelper.setTheme(this, isChecked);
-            recreate(); // Restart activity to apply theme
+            updateDarkModeText(item, isChecked);
+            recreate();
+            return true;
+        } else if (id == R.id.nav_sign_out) {
+            // Handle sign out
+            signOut();
+            drawer.closeDrawer(GravityCompat.START);
             return true;
         }
 
-        // Handle other menu items
+        drawer.closeDrawer(GravityCompat.START);
         return false;
+    }
+
+    private void updateDarkModeText(MenuItem darkModeItem, boolean isDarkTheme) {
+        darkModeItem.setTitle(isDarkTheme ? "Light Mode" : "Dark Mode");
+    }
+
+    private void signOut() {
+        // Add your sign out logic here
+        Toast.makeText(this, "Signed out", Toast.LENGTH_SHORT).show();
+        // Example: Go back to login screen
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+        finish();
     }
 }

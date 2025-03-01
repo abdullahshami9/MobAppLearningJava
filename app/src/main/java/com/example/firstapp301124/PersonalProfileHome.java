@@ -48,6 +48,23 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
         // Set status and navigation bar colors based on theme
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Create color with 75% opacity (0xBF = 191 in decimal, which is ~75% of 255)
+//            int statusBarColor = ThemeHelper.isDarkTheme(this) ?
+//                0xBF000000 : // Black with 75% opacity
+//                0xBFFFFFFF; // White with 75% opacity
+//
+//            getWindow().setStatusBarColor(statusBarColor);
+//
+//            // Keep navigation bar solid
+//            getWindow().setNavigationBarColor(ThemeHelper.isDarkTheme(this) ?
+//                Color.BLACK :
+//                Color.WHITE);
+//
+//            // Set system UI flags
+//            if (!ThemeHelper.isDarkTheme(this)) {
+//                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+//            } else {
+
             if (ThemeHelper.isDarkTheme(this)) {
                 // Dark theme - set both bars to black
                 getWindow().setStatusBarColor(Color.BLACK);
@@ -57,7 +74,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                 // Light theme - set both bars to white
                 getWindow().setStatusBarColor(Color.WHITE);
                 getWindow().setNavigationBarColor(Color.WHITE);
-                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+                getWindow().getDecorView().setSystemUiVisibility(0);
             }
         }
 
@@ -68,6 +85,13 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         EditText searchBar = toolbar.findViewById(R.id.searchBar);
         ImageView menuIcon = toolbar.findViewById(R.id.menuIcon);
         ImageView profileIcon = toolbar.findViewById(R.id.profileIcon);
+
+        // Set the background color based on the current theme
+        if (ThemeHelper.isDarkTheme(this)) {
+            navigationView.setBackgroundColor(ContextCompat.getColor(this, R.color.drawer_background_dark));
+        } else {
+            navigationView.setBackgroundColor(ContextCompat.getColor(this, R.color.drawer_background_light));
+        }
 
         // Setup menu icon to toggle drawer
         menuIcon.setOnClickListener(v -> {
@@ -81,18 +105,18 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
             @Override
             public void onDrawerOpened(@NonNull View drawerView) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    getWindow().setStatusBarColor(Color.WHITE);
-                    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-                }
+                // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                //     getWindow().setStatusBarColor(Color.WHITE);
+                //     getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+                // }
             }
 
             @Override
             public void onDrawerClosed(@NonNull View drawerView) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    getWindow().setStatusBarColor(Color.WHITE);
-                    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-                }
+                // if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                //     getWindow().setStatusBarColor(Color.WHITE);
+                //     getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+                // }
             }
 
             @Override

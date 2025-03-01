@@ -18,4 +18,8 @@
     <color name="app_colorAccent">#03DAC5</color>
     <color name="app_background">#FFFFFF</color>
     <color name="app_textColor">#000000</color>
+    <color name="sign_out_color">#FF0000</color>
+    <color name="drawer_background_light">#FFFFFF</color>
+    <color name="drawer_background_dark">#1E1E1E</color>
+    <color name="red">#FF0000</color>
 </resources>

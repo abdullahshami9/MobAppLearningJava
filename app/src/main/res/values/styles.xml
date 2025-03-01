@@ -12,16 +12,52 @@
         <item name="cornerSize">50%</item> <!-- This makes the image round -->
     </style>
 
-    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/app_colorPrimary</item>
         <item name="colorPrimaryDark">@color/app_colorPrimaryDark</item>
         <item name="colorAccent">@color/app_colorAccent</item>
         <item name="app_background">@color/app_background</item>
         <item name="app_textColor">@color/app_textColor</item>
         <item name="android:statusBarColor">@android:color/darker_gray</item>
+        <item name="navigationViewStyle">@style/NavigationViewStyle</item>
+        <item name="drawerBackground">@color/drawer_background_light</item>
     </style>
 
+    <style name="AppTheme.Dark" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/app_colorPrimary</item>
+        <item name="colorPrimaryDark">@color/app_colorPrimaryDark</item>
+        <item name="colorAccent">@color/app_colorAccent</item>
+        <item name="app_background">@color/app_background</item>
+        <item name="app_textColor">@color/app_textColor</item>
+        <item name="android:statusBarColor">@android:color/darker_gray</item>
+        <item name="navigationViewStyle">@style/NavigationViewStyle</item>
+        <item name="drawerBackground">@color/drawer_background_dark</item>
+    </style>
 
+    <style name="DarkModeToggleStyle" parent="Widget.AppCompat.CompoundButton.Switch">
+        <item name="android:minWidth">48dp</item>
+        <item name="android:minHeight">24dp</item>
+        <item name="android:trackTint">@null</item>
+        <item name="android:thumbTint">@null</item>
+    </style>
 
+    <style name="NavigationViewStyle" parent="Widget.MaterialComponents.NavigationView">
+        <item name="itemIconTint">?attr/colorOnSurface</item>
+        <item name="itemTextColor">?attr/colorOnSurface</item>
+        <item name="itemBackground">?attr/selectableItemBackground</item>
+        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="itemTextAppearance">@style/NavigationItemTextAppearance</item>
+        <item name="android:dividerHeight">1dp</item>
+        <item name="android:showDividers">middle</item>
+        <item name="android:background">?attr/drawerBackground</item>
+    </style>
+
+    <style name="NavigationItemTextAppearance" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
 
 </resources>
