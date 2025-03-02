@@ -37,8 +37,11 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
     private RecyclerView recyclerView;
     private GridAdapter gridAdapter;
-    private List<String> dataList;
+    private List<Note> dataList;
     private DrawerLayout drawerLayout;
+    private RaabtaaDBHelper dbHelper;
+    private List<Note> notesList = new ArrayList<>();
+    private int currentUserId = 1; // Replace with the actual user ID
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -154,9 +157,6 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
         // Initialize data for grid
         dataList = new ArrayList<>();
-        for (int i = 1; i <= 20; i++) {
-            dataList.add("Item " + i);
-        }
 
         // Set up RecyclerView with GridLayoutManager
         GridLayoutManager gridLayoutManager = new GridLayoutManager(this, 2);
@@ -188,14 +188,18 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             }
         });
         itemTouchHelper.attachToRecyclerView(recyclerView);
+
+        // Initialize the database helper
+        dbHelper = new RaabtaaDBHelper(this);
+        currentUserId = getIntent().getIntExtra("userId", 1);
+        loadNotes();
     }
 
     private void filterRecyclerView(String query) {
-        // Implement the search logic to filter the RecyclerView based on the query
-        List<String> filteredList = new ArrayList<>();
-        for (String item : dataList) {
-            if (item.toLowerCase().contains(query.toLowerCase())) {
-                filteredList.add(item);
+        List<Note> filteredList = new ArrayList<>();
+        for (Note note : dataList) {
+            if (note.getTitle().toLowerCase().contains(query.toLowerCase())) {
+                filteredList.add(note);
             }
         }
         gridAdapter.updateData(filteredList);
@@ -211,15 +215,18 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                 .create();
 
         saveIcon.setOnClickListener(v -> {
-            String newItem = inputText.getText().toString();
-            if (!newItem.isEmpty()) {
-                dataList.add(newItem);
-                gridAdapter.notifyItemInserted(dataList.size() - 1);
-                recyclerView.smoothScrollToPosition(dataList.size() - 1);
+            String title = inputText.getText().toString();
+            if (!title.isEmpty()) {
+                // Add the note to the database
+                dbHelper.addNote(currentUserId, title, "", 1, 0); // Default values for content, colorId, and isPinned
+
+                // Refresh the notes list
+                loadNotes();
+
                 dialog.dismiss();
-                Toast.makeText(this, "New item added", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Note added", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Text cannot be empty", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -227,35 +234,59 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     }
 
     private void showEditModal(int position) {
-        // Inflate the same layout used for add modal
+        // Get the note for this position
+        Note note = notesList.get(position);
+
+        // Inflate the dialog layout
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
         EditText inputText = dialogView.findViewById(R.id.inputText);
         ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
 
-        // Pre-fill the input with current value
-        inputText.setText(dataList.get(position));
+        // Pre-fill the input with the note title
+        inputText.setText(note.getTitle());
 
-        // Create the dialog with the same style
+        // Create the dialog
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
                 .setView(dialogView)
                 .create();
 
         // Set click listener for save button
         saveIcon.setOnClickListener(v -> {
-            String newValue = inputText.getText().toString();
-            if (!newValue.isEmpty()) {
-                // Update the item in the list
-                dataList.set(position, newValue);
-                gridAdapter.notifyItemChanged(position);
+            String updatedTitle = inputText.getText().toString();
+            if (!updatedTitle.isEmpty()) {
+                // Update the note in the database
+                dbHelper.updateNote(note.getId(), updatedTitle, note.getContent(), note.getColorId(), note.getIsPinned());
+
+                // Refresh the notes list
+                loadNotes();
+
                 dialog.dismiss();
-                Toast.makeText(PersonalProfileHome.this, "Item updated", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(PersonalProfileHome.this, "Text cannot be empty", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show();
             }
         });
 
         // Show the dialog
         dialog.show();
+    }
+
+    private void loadNotes() {
+        // Fetch notes from the database
+        notesList = dbHelper.getNotesByUser(currentUserId);
+
+        // Update the dataList
+        dataList.clear();
+        dataList.addAll(notesList);
+
+        // Update the RecyclerView adapter
+        gridAdapter.updateData(dataList);
+    }
+
+    private void deleteNote(int position) {
+        Note note = dataList.get(position);
+        dbHelper.deleteNote(note.getId());
+        loadNotes(); // Refresh the list
     }
 
     @Override

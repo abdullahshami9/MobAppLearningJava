@@ -12,12 +12,12 @@ import java.util.List;
 
 public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
 
-    private List<String> dataList;
-    private final OnItemClickListener onItemClickListener;
+    private List<Note> notes;
+    private final OnItemClickListener listener;
 
-    public GridAdapter(List<String> dataList, OnItemClickListener onItemClickListener) {
-        this.dataList = dataList;
-        this.onItemClickListener = onItemClickListener;
+    public GridAdapter(List<Note> notes, OnItemClickListener listener) {
+        this.notes = notes;
+        this.listener = listener;
     }
 
     @NonNull
@@ -29,27 +29,27 @@ public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        holder.textView.setText(dataList.get(position));
-        holder.itemView.setOnClickListener(v -> onItemClickListener.onItemClick(position));
+        Note note = notes.get(position);
+        holder.title.setText(note.getTitle());
+        holder.itemView.setOnClickListener(v -> listener.onItemClick(position));
     }
 
     @Override
     public int getItemCount() {
-        return dataList.size();
+        return notes.size();
     }
 
-    // Add updateData() method
-    public void updateData(List<String> newDataList) {
-        this.dataList = newDataList;
-        notifyDataSetChanged();  // Notify the adapter that the data has changed
+    public void updateData(List<Note> notes) {
+        this.notes = notes;
+        notifyDataSetChanged();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView textView;
+        TextView title;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            textView = itemView.findViewById(R.id.textView);
+            title = itemView.findViewById(R.id.itemTitle);
         }
     }
 
