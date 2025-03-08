@@ -3,9 +3,13 @@ package com.example.firstapp301124;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -14,6 +18,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -193,6 +198,107 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         dbHelper = new RaabtaaDBHelper(this);
         currentUserId = getIntent().getIntExtra("userId", 1);
         loadNotes();
+
+        // Handle incoming intent
+        handleIncomingIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleIncomingIntent(intent);
+    }
+
+    private void handleIncomingIntent(Intent intent) {
+        if (intent != null) {
+            String action = intent.getAction();
+            String type = intent.getType();
+
+            if (Intent.ACTION_VIEW.equals(action) && type != null) {
+                Uri fileUri = intent.getData();
+                if (fileUri != null) {
+                    try {
+                        // Get file name and content
+                        String fileName = getFileName(fileUri);
+                        String content = readFileContent(fileUri);
+                        
+                        // Determine file extension
+                        String extension = getFileExtension(fileName);
+                        
+                        // Create new note with file content
+                        createNoteFromFile(fileName, content, extension);
+                    } catch (Exception e) {
+                        Toast.makeText(this, "Error opening file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        }
+    }
+
+    private String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex != -1) {
+                        result = cursor.getString(nameIndex);
+                    }
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) {
+                result = result.substring(cut + 1);
+            }
+        }
+        return result;
+    }
+
+    private String getFileExtension(String fileName) {
+        String[] supportedExtensions = {".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
+        String lowercaseFileName = fileName.toLowerCase();
+        
+        for (String ext : supportedExtensions) {
+            if (lowercaseFileName.endsWith(ext)) {
+                return ext;
+            }
+        }
+        return ".txt"; // Default to .txt if no matching extension found
+    }
+
+    private String readFileContent(Uri uri) throws Exception {
+        StringBuilder content = new StringBuilder();
+        try (java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
+             java.io.BufferedReader reader = new java.io.BufferedReader(
+                     new java.io.InputStreamReader(inputStream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+        }
+        return content.toString();
+    }
+
+    private void createNoteFromFile(String fileName, String content, String extension) {
+        // Remove extension from filename if present
+        String title = fileName;
+        for (String ext : new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"}) {
+            if (title.toLowerCase().endsWith(ext)) {
+                title = title.substring(0, title.length() - ext.length());
+                break;
+            }
+        }
+
+        // Add note to database
+        dbHelper.addNote(currentUserId, title + extension, content, 1, 0);
+        
+        // Refresh the notes list
+        loadNotes();
+        
+        Toast.makeText(this, "File opened successfully", Toast.LENGTH_SHORT).show();
     }
 
     private void filterRecyclerView(String query) {
@@ -209,6 +315,21 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
         EditText inputText = dialogView.findViewById(R.id.inputText);
         ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
+        TextView languageIndicator = dialogView.findViewById(R.id.languageIndicator);
+
+        // Set up language selection
+        String[] languages = new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
+        final int[] selectedLanguage = {0}; // Default to .txt
+
+        languageIndicator.setOnClickListener(v -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Select Language")
+                   .setItems(languages, (dialog, which) -> {
+                       selectedLanguage[0] = which;
+                       languageIndicator.setText(languages[which]);
+                   });
+            builder.create().show();
+        });
 
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
                 .setView(dialogView)
@@ -217,8 +338,9 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         saveIcon.setOnClickListener(v -> {
             String title = inputText.getText().toString();
             if (!title.isEmpty()) {
-                // Add the note to the database
-                dbHelper.addNote(currentUserId, title, "", 1, 0); // Default values for content, colorId, and isPinned
+                // Add the note to the database with the selected language extension
+                String finalTitle = title + languages[selectedLanguage[0]];
+                dbHelper.addNote(currentUserId, finalTitle, "", 1, 0);
 
                 // Refresh the notes list
                 loadNotes();
@@ -241,9 +363,37 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
         EditText inputText = dialogView.findViewById(R.id.inputText);
         ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
+        TextView languageIndicator = dialogView.findViewById(R.id.languageIndicator);
 
-        // Pre-fill the input with the note title
-        inputText.setText(note.getTitle());
+        // Set up language selection
+        String[] languages = new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
+        final int[] selectedLanguage = {0}; // Default to .txt
+
+        // Extract current extension if it exists
+        String currentTitle = note.getTitle();
+        String extension = "";
+        for (int i = 0; i < languages.length; i++) {
+            if (currentTitle.endsWith(languages[i])) {
+                extension = languages[i];
+                selectedLanguage[0] = i;
+                currentTitle = currentTitle.substring(0, currentTitle.length() - extension.length());
+                break;
+            }
+        }
+
+        // Set the title without extension
+        inputText.setText(currentTitle);
+        languageIndicator.setText(extension.isEmpty() ? languages[0] : extension);
+
+        languageIndicator.setOnClickListener(v -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Select Language")
+                   .setItems(languages, (dialog, which) -> {
+                       selectedLanguage[0] = which;
+                       languageIndicator.setText(languages[which]);
+                   });
+            builder.create().show();
+        });
 
         // Create the dialog
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
@@ -254,8 +404,9 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         saveIcon.setOnClickListener(v -> {
             String updatedTitle = inputText.getText().toString();
             if (!updatedTitle.isEmpty()) {
-                // Update the note in the database
-                dbHelper.updateNote(note.getId(), updatedTitle, note.getContent(), note.getColorId(), note.getIsPinned());
+                // Update the note in the database with the selected language extension
+                String finalTitle = updatedTitle + languages[selectedLanguage[0]];
+                dbHelper.updateNote(note.getId(), finalTitle, note.getContent(), note.getColorId(), note.getIsPinned());
 
                 // Refresh the notes list
                 loadNotes();
