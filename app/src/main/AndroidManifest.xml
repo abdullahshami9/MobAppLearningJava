@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.firstapp301124">
 
     <application
         android:allowBackup="true"
@@ -16,7 +17,43 @@
 <!--            android:name="."-->
 <!--            android:exported="false" />-->
         <activity
-            android:name=".PersonalProfileHome"/>
+            android:name=".PersonalProfileHome"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- File handling intent filters -->
+            <intent-filter android:priority="100">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="text/*" />
+                <data android:host="*" />
+            </intent-filter>
+
+            <intent-filter android:priority="100">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.txt" />
+                <data android:pathPattern=".*\\.php" />
+                <data android:pathPattern=".*\\.java" />
+                <data android:pathPattern=".*\\.py" />
+                <data android:pathPattern=".*\\.js" />
+                <data android:pathPattern=".*\\.html" />
+                <data android:pathPattern=".*\\.css" />
+                <data android:pathPattern=".*\\.xml" />
+                <data android:pathPattern=".*\\.json" />
+                <data android:pathPattern=".*\\.md" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".profile_type"

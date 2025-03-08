@@ -15,7 +15,7 @@ public class Note {
         this.id = id;
         this.userId = userId;
         this.title = title;
-        this.content = content;
+        this.content = content != null ? content : "";
         this.colorId = colorId;
         this.isPinned = isPinned;
         this.createdAt = createdAt;
@@ -48,11 +48,11 @@ public class Note {
     }
 
     public String getContent() {
-        return content;
+        return content != null ? content : "";
     }
 
     public void setContent(String content) {
-        this.content = content;
+        this.content = content != null ? content : "";
     }
 
     public int getColorId() {

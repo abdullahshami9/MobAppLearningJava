@@ -292,11 +292,13 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             }
         }
 
-        // Add note to database
+        // Add note to database with the file content
         dbHelper.addNote(currentUserId, title + extension, content, 1, 0);
         
-        // Refresh the notes list
+        // Open the note for editing immediately
+        int newNotePosition = 0; // The new note will be at the top after loadNotes()
         loadNotes();
+        showEditModal(newNotePosition);
         
         Toast.makeText(this, "File opened successfully", Toast.LENGTH_SHORT).show();
     }
@@ -368,22 +370,26 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         // Set up language selection
         String[] languages = new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
         final int[] selectedLanguage = {0}; // Default to .txt
+        final String[] titleHolder = {note.getTitle()}; // Store title in array to make it effectively final
 
-        // Extract current extension if it exists
-        String currentTitle = note.getTitle();
-        String extension = "";
-        for (int i = 0; i < languages.length; i++) {
-            if (currentTitle.endsWith(languages[i])) {
-                extension = languages[i];
-                selectedLanguage[0] = i;
-                currentTitle = currentTitle.substring(0, currentTitle.length() - extension.length());
+        // Extract current extension and title
+        for (String ext : languages) {
+            if (titleHolder[0].toLowerCase().endsWith(ext.toLowerCase())) {
+                titleHolder[0] = titleHolder[0].substring(0, titleHolder[0].length() - ext.length());
+                // Find the index of the extension in languages array
+                for (int i = 0; i < languages.length; i++) {
+                    if (languages[i].equals(ext)) {
+                        selectedLanguage[0] = i;
+                        break;
+                    }
+                }
                 break;
             }
         }
 
-        // Set the title without extension
-        inputText.setText(currentTitle);
-        languageIndicator.setText(extension.isEmpty() ? languages[0] : extension);
+        // Set the content and language indicator
+        inputText.setText(note.getContent()); // Show content for editing instead of title
+        languageIndicator.setText(languages[selectedLanguage[0]]);
 
         languageIndicator.setOnClickListener(v -> {
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -402,11 +408,10 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
         // Set click listener for save button
         saveIcon.setOnClickListener(v -> {
-            String updatedTitle = inputText.getText().toString();
-            if (!updatedTitle.isEmpty()) {
+            String updatedContent = inputText.getText().toString();
+            if (!updatedContent.isEmpty()) {
                 // Update the note in the database with the selected language extension
-                String finalTitle = updatedTitle + languages[selectedLanguage[0]];
-                dbHelper.updateNote(note.getId(), finalTitle, note.getContent(), note.getColorId(), note.getIsPinned());
+                dbHelper.updateNote(note.getId(), titleHolder[0] + languages[selectedLanguage[0]], updatedContent, note.getColorId(), note.getIsPinned());
 
                 // Refresh the notes list
                 loadNotes();
@@ -414,7 +419,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                 dialog.dismiss();
                 Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Content cannot be empty", Toast.LENGTH_SHORT).show();
             }
         });
 

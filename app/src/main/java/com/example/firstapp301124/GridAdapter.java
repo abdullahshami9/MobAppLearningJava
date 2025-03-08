@@ -30,7 +30,18 @@ public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Note note = notes.get(position);
-        holder.title.setText(note.getTitle());
+        String title = note.getTitle();
+        
+        // Remove extension from display
+        String[] extensions = {".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
+        for (String ext : extensions) {
+            if (title.toLowerCase().endsWith(ext.toLowerCase())) {
+                title = title.substring(0, title.length() - ext.length());
+                break;
+            }
+        }
+        
+        holder.title.setText(title);
         holder.itemView.setOnClickListener(v -> listener.onItemClick(position));
     }
 
