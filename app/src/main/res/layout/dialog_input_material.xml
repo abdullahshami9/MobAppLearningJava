@@ -8,31 +8,52 @@
     android:elevation="8dp">
 
     <RelativeLayout
+        android:id="@+id/titleBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:padding="8dp">
 
-        <View
-            android:id="@+id/statusIndicator"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
+        <TextView
+            android:id="@+id/fileTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/moreOptionsIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_alignParentEnd="true"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/status_indicator_background"/>
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_more"
+            android:padding="2dp" />
 
         <TextView
             android:id="@+id/languageIndicator"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@id/statusIndicator"
-            android:layout_alignParentEnd="true"
+            android:layout_toStartOf="@id/moreOptionsIcon"
+            android:layout_centerVertical="true"
             android:text=".txt"
             android:textColor="#808080"
             android:textSize="14sp"
             android:padding="4dp"
-            android:layout_marginTop="4dp"
+            android:layout_marginEnd="8dp"
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackground"/>
+
+        <View
+            android:id="@+id/statusIndicator"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_toStartOf="@id/languageIndicator"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/status_indicator_background"/>
     </RelativeLayout>
 
     <EditText
@@ -116,4 +137,50 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:layout_marginEnd="8dp" />
     </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/terminalSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        android:background="#1A000000">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/terminalPrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:typeface="monospace"
+                android:textColor="#808080" />
+
+            <EditText
+                android:id="@+id/terminalInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@null"
+                android:textSize="14sp"
+                android:textColor="@color/black"
+                android:typeface="monospace"
+                android:inputType="text"
+                android:imeOptions="actionSend" />
+
+            <TextView
+                android:id="@+id/terminalOutput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:minHeight="100dp"
+                android:textSize="14sp"
+                android:textColor="#808080"
+                android:typeface="monospace" />
+        </LinearLayout>
+    </FrameLayout>
 </LinearLayout>

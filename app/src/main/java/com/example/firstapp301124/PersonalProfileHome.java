@@ -25,6 +25,7 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.PopupMenu;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -42,9 +43,16 @@ import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.checkbox.MaterialCheckBox;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 public class PersonalProfileHome extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -341,6 +349,59 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         // Set up language selection
         String[] languages = new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
         final int[] selectedLanguage = {0}; // Default to .txt
+        final boolean[] isTerminalVisible = {false}; // Track terminal visibility
+
+        // Initialize views
+        View terminalSection = dialogView.findViewById(R.id.terminalSection);
+        TextView terminalPrompt = dialogView.findViewById(R.id.terminalPrompt);
+        EditText terminalInput = dialogView.findViewById(R.id.terminalInput);
+        TextView terminalOutput = dialogView.findViewById(R.id.terminalOutput);
+
+        // Set terminal style based on OS preference
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String selectedOS = prefs.getString(SELECTED_OS, "Windows");
+        
+        // Configure terminal appearance
+        if (terminalSection != null) {
+            terminalSection.setVisibility(View.GONE);
+            if (ThemeHelper.isDarkTheme(this)) {
+                terminalSection.setBackgroundColor(Color.parseColor("#1E1E1E")); // Dark terminal
+                terminalInput.setTextColor(Color.WHITE);
+                terminalOutput.setTextColor(Color.parseColor("#CCCCCC"));
+            } else {
+                terminalSection.setBackgroundColor(Color.parseColor("#F0F0F0")); // Light terminal
+                terminalInput.setTextColor(Color.BLACK);
+                terminalOutput.setTextColor(Color.parseColor("#666666"));
+            }
+        }
+
+        // Set terminal prompt based on OS
+        if (terminalPrompt != null) {
+            switch (selectedOS) {
+                case "Windows":
+                    terminalPrompt.setText("C:\\Users\\>");
+                    break;
+                case "macOS":
+                    terminalPrompt.setText("user@macbook ~ %");
+                    break;
+                case "Linux":
+                    terminalPrompt.setText("user@linux:~$");
+                    break;
+            }
+        }
+
+        // Setup terminal input handling
+        if (terminalInput != null) {
+            terminalInput.setOnEditorActionListener((v, actionId, event) -> {
+                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) {
+                    String command = terminalInput.getText().toString().trim();
+                    executeTerminalCommand(command, selectedOS, terminalOutput);
+                    terminalInput.setText("");
+                    return true;
+                }
+                return false;
+            });
+        }
 
         // Setup line numbers
         updateLineNumbers(contentInput, lineNumbers);
@@ -408,31 +469,37 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private void updateLineNumbers(EditText contentInput, TextView lineNumbers) {
         try {
             String text = contentInput.getText().toString();
-            int lineCount = text.isEmpty() ? 1 : text.split("\n").length;
+            int lineCount = text.isEmpty() ? 1 : text.split("\n", -1).length;
             StringBuilder numbers = new StringBuilder();
+            
+            // Add line numbers
             for (int i = 1; i <= lineCount; i++) {
                 numbers.append(String.format("%3d\n", i));
             }
-            // Add extra padding at the bottom to ensure alignment
-            numbers.append("\n".repeat(3));
+            
+            // Remove any extra newlines at the end of the content
+            while (text.endsWith("\n")) {
+                text = text.substring(0, text.length() - 1);
+                lineCount--;
+            }
+            
             lineNumbers.setText(numbers.toString());
             
-            // Sync scroll positions
-            int scrollY = contentInput.getScrollY();
-            lineNumbers.scrollTo(0, scrollY);
-            
-            // Match the line height
-            lineNumbers.setLineSpacing(contentInput.getLineSpacingExtra(), contentInput.getLineSpacingMultiplier());
-            
-            // Set the same text size
+            // Match text appearance and metrics
             lineNumbers.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, contentInput.getTextSize());
+            lineNumbers.setLineSpacing(contentInput.getLineSpacingExtra(), contentInput.getLineSpacingMultiplier());
+            lineNumbers.setTypeface(contentInput.getTypeface());
             
-            // Match the height
+            // Ensure the line numbers view has the same height as the content
             ViewGroup.LayoutParams params = lineNumbers.getLayoutParams();
             params.height = contentInput.getHeight();
             lineNumbers.setLayoutParams(params);
+            
+            // Sync scroll position
+            lineNumbers.scrollTo(0, contentInput.getScrollY());
+            
         } catch (Exception e) {
-            lineNumbers.setText(" 1\n");
+            lineNumbers.setText("1\n");
         }
     }
 
@@ -582,6 +649,59 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         String[] languages = new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
         final int[] selectedLanguage = {0}; // Default to .txt
         final String[] titleHolder = {note.getTitle()}; // Store title in array to make it effectively final
+        final boolean[] isTerminalVisible = {false}; // Track terminal visibility
+
+        // Initialize terminal views
+        View terminalSection = dialogView.findViewById(R.id.terminalSection);
+        TextView terminalPrompt = dialogView.findViewById(R.id.terminalPrompt);
+        EditText terminalInput = dialogView.findViewById(R.id.terminalInput);
+        TextView terminalOutput = dialogView.findViewById(R.id.terminalOutput);
+
+        // Set terminal style based on OS preference
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String selectedOS = prefs.getString(SELECTED_OS, "Windows");
+        
+        // Configure terminal appearance
+        if (terminalSection != null) {
+            terminalSection.setVisibility(View.GONE);
+            if (ThemeHelper.isDarkTheme(this)) {
+                terminalSection.setBackgroundColor(Color.parseColor("#1E1E1E")); // Dark terminal
+                terminalInput.setTextColor(Color.WHITE);
+                terminalOutput.setTextColor(Color.parseColor("#CCCCCC"));
+            } else {
+                terminalSection.setBackgroundColor(Color.parseColor("#F0F0F0")); // Light terminal
+                terminalInput.setTextColor(Color.BLACK);
+                terminalOutput.setTextColor(Color.parseColor("#666666"));
+            }
+        }
+
+        // Set terminal prompt based on OS
+        if (terminalPrompt != null) {
+            switch (selectedOS) {
+                case "Windows":
+                    terminalPrompt.setText("C:\\Users\\>");
+                    break;
+                case "macOS":
+                    terminalPrompt.setText("user@macbook ~ %");
+                    break;
+                case "Linux":
+                    terminalPrompt.setText("user@linux:~$");
+                    break;
+            }
+        }
+
+        // Setup terminal input handling
+        if (terminalInput != null) {
+            terminalInput.setOnEditorActionListener((v, actionId, event) -> {
+                if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) {
+                    String command = terminalInput.getText().toString().trim();
+                    executeTerminalCommand(command, selectedOS, terminalOutput);
+                    terminalInput.setText("");
+                    return true;
+                }
+                return false;
+            });
+        }
 
         // Extract current extension and title
         for (String ext : languages) {
@@ -602,6 +722,54 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         inputText.setText(titleHolder[0]);
         contentInput.setText(note.getContent());
         languageIndicator.setText(languages[selectedLanguage[0]]);
+
+        // Hide the file title in edit mode
+        TextView fileTitle = dialogView.findViewById(R.id.fileTitle);
+        if (fileTitle != null) {
+            fileTitle.setVisibility(View.GONE);
+        }
+
+        // Create the dialog first so it can be referenced in click listeners
+        final AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
+                .setView(dialogView)
+                .create();
+
+        // Setup more options click listener
+        ImageView moreOptionsIcon = dialogView.findViewById(R.id.moreOptionsIcon);
+        if (moreOptionsIcon != null) {
+            moreOptionsIcon.setOnClickListener(v -> {
+                PopupMenu popup = new PopupMenu(this, moreOptionsIcon);
+                popup.getMenu().add("Open Terminal");
+                popup.getMenu().add("Open in Directory");
+                popup.getMenu().add("Delete");
+                popup.setOnMenuItemClickListener(item -> {
+                    switch (item.getTitle().toString()) {
+                        case "Open Terminal":
+                            isTerminalVisible[0] = !isTerminalVisible[0];
+                            if (terminalSection != null) {
+                                terminalSection.setVisibility(isTerminalVisible[0] ? View.VISIBLE : View.GONE);
+                                if (isTerminalVisible[0]) {
+                                    terminalSection.setAlpha(0f);
+                                    terminalSection.animate()
+                                        .alpha(1f)
+                                        .setDuration(200)
+                                        .start();
+                                }
+                            }
+                            break;
+                        case "Open in Directory":
+                            // Handle directory opening
+                            break;
+                        case "Delete":
+                            deleteNote(position);
+                            dialog.dismiss();
+                            break;
+                    }
+                    return true;
+                });
+                popup.show();
+            });
+        }
 
         // Setup line numbers and ensure they're visible
         contentInput.post(() -> {
@@ -652,11 +820,6 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         });
 
         languageIndicator.setOnClickListener(v -> showLanguageSelector(languageIndicator, selectedLanguage));
-
-        // Create the dialog
-        AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
-                .setView(dialogView)
-                .create();
 
         // Set click listener for save button
         saveIcon.setOnClickListener(v -> {
@@ -779,9 +942,200 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                });
         
         AlertDialog dialog = builder.create();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-        }
         dialog.show();
+    }
+
+    private void executeTerminalCommand(String command, String os, TextView output) {
+        StringBuilder result = new StringBuilder();
+        
+        try {
+            String currentOutput = output.getText().toString();
+            String prompt = getPromptForOS(os);
+            
+            // Simulate terminal commands
+            if (command.startsWith("git ")) {
+                simulateGitCommand(command, result);
+            } else {
+                switch (os) {
+                    case "Windows":
+                        simulateWindowsCommand(command, result);
+                        break;
+                    case "macOS":
+                    case "Linux":
+                        simulateUnixCommand(command, result);
+                        break;
+                }
+            }
+            
+            // Update the output TextView on the UI thread
+            runOnUiThread(() -> {
+                output.setText(currentOutput + "\n" + prompt + command + "\n" + result.toString());
+                
+                // Scroll to the bottom
+                output.post(() -> {
+                    if (output.getLayout() != null) {
+                        int scrollAmount = output.getLayout().getLineTop(output.getLineCount()) - output.getHeight();
+                        if (scrollAmount > 0) {
+                            output.scrollTo(0, scrollAmount);
+                        } else {
+                            output.scrollTo(0, 0);
+                        }
+                    }
+                });
+            });
+            
+        } catch (Exception e) {
+            String errorMessage = "Error executing command: " + e.getMessage() + "\n";
+            runOnUiThread(() -> output.append(errorMessage));
+        }
+    }
+
+    private void simulateWindowsCommand(String command, StringBuilder result) {
+        File workingDir = new File(getFilesDir(), "workspace");
+        
+        if (command.equals("dir")) {
+            if (!workingDir.exists()) {
+                workingDir.mkdirs();
+            }
+            
+            result.append(" Directory of ").append(workingDir.getAbsolutePath()).append("\n\n");
+            
+            File[] files = workingDir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    String fileType = file.isDirectory() ? "<DIR>" : "     ";
+                    String lastModified = new java.text.SimpleDateFormat("MM/dd/yyyy  HH:mm")
+                            .format(new java.util.Date(file.lastModified()));
+                    String size = file.isDirectory() ? "    " : String.format("%8d", file.length());
+                    
+                    result.append(String.format("%s  %s  %s  %s\n",
+                            lastModified, fileType, size, file.getName()));
+                }
+            }
+            
+            result.append("\n     Total files listed:\n")
+                  .append("          ").append(files != null ? files.length : 0).append(" File(s)\n");
+                  
+        } else if (command.equals("cd")) {
+            result.append(workingDir.getAbsolutePath()).append("\n");
+            
+        } else if (command.startsWith("echo ")) {
+            result.append(command.substring(5)).append("\n");
+            
+        } else if (command.equals("help")) {
+            result.append("Supported commands:\n")
+                  .append("  dir         - Lists files and directories\n")
+                  .append("  cd          - Shows current directory\n")
+                  .append("  echo [text] - Displays text\n")
+                  .append("  cls         - Clears the screen\n")
+                  .append("  git [cmd]   - Git commands\n");
+                  
+        } else if (command.equals("cls")) {
+            // Clear will be handled differently
+            result.append("\n");
+            
+        } else {
+            result.append("'").append(command).append("' is not recognized as an internal command\n");
+        }
+    }
+
+    private void simulateUnixCommand(String command, StringBuilder result) {
+        File workingDir = new File(getFilesDir(), "workspace");
+        
+        if (command.equals("ls")) {
+            if (!workingDir.exists()) {
+                workingDir.mkdirs();
+            }
+            
+            File[] files = workingDir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    result.append(file.getName()).append("  ");
+                }
+            }
+            result.append("\n");
+            
+        } else if (command.equals("pwd")) {
+            result.append(workingDir.getAbsolutePath()).append("\n");
+            
+        } else if (command.startsWith("echo ")) {
+            result.append(command.substring(5)).append("\n");
+            
+        } else if (command.equals("clear")) {
+            // Clear will be handled differently
+            result.append("\n");
+            
+        } else if (command.equals("help")) {
+            result.append("Supported commands:\n")
+                  .append("  ls          - Lists files and directories\n")
+                  .append("  pwd         - Shows current directory\n")
+                  .append("  echo [text] - Displays text\n")
+                  .append("  clear       - Clears the screen\n")
+                  .append("  git [cmd]   - Git commands\n");
+                  
+        } else {
+            result.append("command not found: ").append(command).append("\n");
+        }
+    }
+
+    private void simulateGitCommand(String command, StringBuilder result) {
+        String[] parts = command.split("\\s+");
+        if (parts.length < 2) {
+            result.append("git: missing command\n");
+            return;
+        }
+        
+        String gitCommand = parts[1];
+        switch (gitCommand) {
+            case "init":
+                result.append("Initialized empty Git repository\n");
+                break;
+            case "status":
+                result.append("On branch master\n")
+                      .append("No commits yet\n")
+                      .append("nothing to commit (create/copy files and use \"git add\" to track)\n");
+                break;
+            case "add":
+                if (parts.length < 3) {
+                    result.append("Nothing specified, nothing added.\n");
+                } else {
+                    result.append("add '").append(parts[2]).append("'\n");
+                }
+                break;
+            case "commit":
+                if (parts.length < 4 || !parts[2].equals("-m")) {
+                    result.append("Please provide a commit message using -m\n");
+                } else {
+                    result.append("Created commit: ").append(parts[3]).append("\n");
+                }
+                break;
+            case "branch":
+                result.append("* master\n");
+                break;
+            case "help":
+                result.append("Common Git commands:\n")
+                      .append("   init    Create empty Git repository\n")
+                      .append("   status  Show working tree status\n")
+                      .append("   add     Add file contents to index\n")
+                      .append("   commit  Record changes to repository\n")
+                      .append("   branch  List branches\n");
+                break;
+            default:
+                result.append("git: '").append(gitCommand).append("' is not a git command.\n");
+                break;
+        }
+    }
+
+    private String getPromptForOS(String os) {
+        switch (os) {
+            case "Windows":
+                return "C:\\Users\\> ";
+            case "macOS":
+                return "user@macbook ~ % ";
+            case "Linux":
+                return "user@linux:~$ ";
+            default:
+                return "> ";
+        }
     }
 }
