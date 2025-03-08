@@ -4,6 +4,8 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
@@ -15,9 +17,12 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,15 +33,18 @@ import androidx.core.view.ViewCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.checkbox.MaterialCheckBox;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Stack;
 
 public class PersonalProfileHome extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -47,6 +55,14 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private RaabtaaDBHelper dbHelper;
     private List<Note> notesList = new ArrayList<>();
     private int currentUserId = 1; // Replace with the actual user ID
+
+    private static final String PREFS_NAME = "NotesAppPrefs";
+    private static final String SELECTED_OS = "selected_os";
+
+    // Language selection listener interface
+    private interface OnLanguageSelectedListener {
+        void onLanguageSelected(int position);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -316,22 +332,53 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private void openAddModal() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
         EditText inputText = dialogView.findViewById(R.id.inputText);
+        EditText contentInput = dialogView.findViewById(R.id.contentInput);
         ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
         TextView languageIndicator = dialogView.findViewById(R.id.languageIndicator);
+        TextView lineNumbers = dialogView.findViewById(R.id.lineNumbers);
+        View statusIndicator = dialogView.findViewById(R.id.statusIndicator);
 
         // Set up language selection
         String[] languages = new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
         final int[] selectedLanguage = {0}; // Default to .txt
 
-        languageIndicator.setOnClickListener(v -> {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Select Language")
-                   .setItems(languages, (dialog, which) -> {
-                       selectedLanguage[0] = which;
-                       languageIndicator.setText(languages[which]);
-                   });
-            builder.create().show();
+        // Setup line numbers
+        updateLineNumbers(contentInput, lineNumbers);
+        
+        // Add text change listener for line numbers and status indicator
+        contentInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updateLineNumbers(contentInput, lineNumbers);
+                updateStatusIndicator(statusIndicator, s.toString(), languages[selectedLanguage[0]]);
+                
+                try {
+                    if (s.length() > 0 && start < s.length()) {
+                        char currentChar = s.charAt(start);
+                        if (currentChar != '\n' && Character.isLetterOrDigit(currentChar)) {
+                            showCodeSnippets(contentInput, languages[selectedLanguage[0]], s.toString(), start);
+                        }
+                    }
+                } catch (Exception e) {
+                    // Handle string index errors
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateLineNumbers(contentInput, lineNumbers);
+            }
         });
+
+        // Add scroll listener to keep line numbers synchronized
+        contentInput.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            lineNumbers.scrollTo(0, scrollY);
+        });
+
+        languageIndicator.setOnClickListener(v -> showLanguageSelector(languageIndicator, selectedLanguage));
 
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
                 .setView(dialogView)
@@ -339,10 +386,11 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
         saveIcon.setOnClickListener(v -> {
             String title = inputText.getText().toString();
+            String content = contentInput.getText().toString();
             if (!title.isEmpty()) {
                 // Add the note to the database with the selected language extension
                 String finalTitle = title + languages[selectedLanguage[0]];
-                dbHelper.addNote(currentUserId, finalTitle, "", 1, 0);
+                dbHelper.addNote(currentUserId, finalTitle, content, 1, 0);
 
                 // Refresh the notes list
                 loadNotes();
@@ -357,6 +405,166 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         dialog.show();
     }
 
+    private void updateLineNumbers(EditText contentInput, TextView lineNumbers) {
+        try {
+            String text = contentInput.getText().toString();
+            int lineCount = text.isEmpty() ? 1 : text.split("\n").length;
+            StringBuilder numbers = new StringBuilder();
+            for (int i = 1; i <= lineCount; i++) {
+                numbers.append(String.format("%3d\n", i));
+            }
+            // Add extra padding at the bottom to ensure alignment
+            numbers.append("\n".repeat(3));
+            lineNumbers.setText(numbers.toString());
+            
+            // Sync scroll positions
+            int scrollY = contentInput.getScrollY();
+            lineNumbers.scrollTo(0, scrollY);
+            
+            // Match the line height
+            lineNumbers.setLineSpacing(contentInput.getLineSpacingExtra(), contentInput.getLineSpacingMultiplier());
+            
+            // Set the same text size
+            lineNumbers.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, contentInput.getTextSize());
+            
+            // Match the height
+            ViewGroup.LayoutParams params = lineNumbers.getLayoutParams();
+            params.height = contentInput.getHeight();
+            lineNumbers.setLayoutParams(params);
+        } catch (Exception e) {
+            lineNumbers.setText(" 1\n");
+        }
+    }
+
+    private void updateStatusIndicator(View statusIndicator, String content, String extension) {
+        int color;
+        boolean hasSyntaxError = checkSyntaxError(content, extension);
+        boolean hasFatalError = checkFatalError(content, extension);
+        
+        if (hasFatalError) {
+            color = Color.BLUE;
+        } else if (hasSyntaxError) {
+            color = Color.RED;
+        } else {
+            color = Color.parseColor("#4CAF50"); // Green
+        }
+        
+        statusIndicator.setBackgroundTintList(ColorStateList.valueOf(color));
+    }
+
+    private boolean checkSyntaxError(String content, String extension) {
+        // Basic syntax error checking based on file type
+        switch (extension.toLowerCase()) {
+            case ".java":
+                return !content.isEmpty() && 
+                       (content.contains(";{") || 
+                        content.contains("}}") ||
+                        !checkBracketBalance(content));
+            case ".py":
+                return content.contains("def def") || 
+                       content.contains("class class") ||
+                       content.contains("import import");
+            case ".js":
+                return !content.isEmpty() && 
+                       (content.contains(";;") ||
+                        !checkBracketBalance(content));
+            default:
+                return false;
+        }
+    }
+
+    private boolean checkFatalError(String content, String extension) {
+        // Check for potential fatal errors
+        switch (extension.toLowerCase()) {
+            case ".java":
+                return content.contains("System.exit(-1)") ||
+                       content.contains("throw new RuntimeException");
+            case ".py":
+                return content.contains("sys.exit(-1)") ||
+                       content.contains("raise Exception");
+            case ".js":
+                return content.contains("process.exit(-1)") ||
+                       content.contains("throw new Error");
+            default:
+                return false;
+        }
+    }
+
+    private boolean checkBracketBalance(String content) {
+        Stack<Character> stack = new Stack<>();
+        for (char c : content.toCharArray()) {
+            if (c == '(' || c == '{' || c == '[') {
+                stack.push(c);
+            } else if (c == ')' || c == '}' || c == ']') {
+                if (stack.isEmpty()) return false;
+                char last = stack.pop();
+                if (!isMatchingBracket(last, c)) return false;
+            }
+        }
+        return stack.isEmpty();
+    }
+
+    private boolean isMatchingBracket(char open, char close) {
+        return (open == '(' && close == ')') ||
+               (open == '{' && close == '}') ||
+               (open == '[' && close == ']');
+    }
+
+    private void showCodeSnippets(EditText contentInput, String extension, String text, int position) {
+        String currentWord = getCurrentWord(text, position);
+        if (currentWord.isEmpty()) return;
+
+        String[] suggestions = getCodeSnippets(extension, currentWord);
+        if (suggestions.length == 0) return;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Suggestions")
+               .setItems(suggestions, (dialog, which) -> {
+                   insertCodeSnippet(contentInput, suggestions[which], currentWord, position);
+               });
+        builder.create().show();
+    }
+
+    private String getCurrentWord(String text, int position) {
+        if (position <= 0) return "";
+        int start = position - 1;
+        while (start >= 0 && Character.isLetterOrDigit(text.charAt(start))) {
+            start--;
+        }
+        return text.substring(start + 1, position);
+    }
+
+    private void insertCodeSnippet(EditText contentInput, String snippet, String currentWord, int position) {
+        Editable editable = contentInput.getText();
+        int start = position - currentWord.length();
+        editable.replace(start, position, snippet);
+    }
+
+    private String[] getCodeSnippets(String extension, String prefix) {
+        switch (extension.toLowerCase()) {
+            case ".php":
+                return filterSnippets(prefix, new String[]{"echo", "print", "foreach", "while", "if", "else", "function", "class", "public", "private", "protected"});
+            case ".java":
+                return filterSnippets(prefix, new String[]{"public", "private", "class", "interface", "extends", "implements", "void", "return", "static", "final", "System.out.println"});
+            case ".py":
+                return filterSnippets(prefix, new String[]{"print", "def", "class", "for", "while", "if", "elif", "else", "import", "from", "return"});
+            case ".js":
+                return filterSnippets(prefix, new String[]{"function", "const", "let", "var", "console.log", "return", "if", "else", "for", "while", "class"});
+            default:
+                return new String[0];
+        }
+    }
+
+    private String[] filterSnippets(String prefix, String[] snippets) {
+        List<String> filtered = new ArrayList<>();
+        for (String snippet : snippets) {
+            if (snippet.toLowerCase().startsWith(prefix.toLowerCase())) {
+                filtered.add(snippet);
+            }
+        }
+        return filtered.toArray(new String[0]);
+    }
+
     private void showEditModal(int position) {
         // Get the note for this position
         Note note = notesList.get(position);
@@ -364,8 +572,11 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         // Inflate the dialog layout
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
         EditText inputText = dialogView.findViewById(R.id.inputText);
+        EditText contentInput = dialogView.findViewById(R.id.contentInput);
         ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
         TextView languageIndicator = dialogView.findViewById(R.id.languageIndicator);
+        TextView lineNumbers = dialogView.findViewById(R.id.lineNumbers);
+        View statusIndicator = dialogView.findViewById(R.id.statusIndicator);
 
         // Set up language selection
         String[] languages = new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
@@ -388,18 +599,59 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         }
 
         // Set the content and language indicator
-        inputText.setText(note.getContent()); // Show content for editing instead of title
+        inputText.setText(titleHolder[0]);
+        contentInput.setText(note.getContent());
         languageIndicator.setText(languages[selectedLanguage[0]]);
 
-        languageIndicator.setOnClickListener(v -> {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Select Language")
-                   .setItems(languages, (dialog, which) -> {
-                       selectedLanguage[0] = which;
-                       languageIndicator.setText(languages[which]);
-                   });
-            builder.create().show();
+        // Setup line numbers and ensure they're visible
+        contentInput.post(() -> {
+            updateLineNumbers(contentInput, lineNumbers);
+            // Match text appearance
+            lineNumbers.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, contentInput.getTextSize());
+            lineNumbers.setLineSpacing(contentInput.getLineSpacingExtra(), contentInput.getLineSpacingMultiplier());
+            // Match height
+            ViewGroup.LayoutParams params = lineNumbers.getLayoutParams();
+            params.height = contentInput.getHeight();
+            lineNumbers.setLayoutParams(params);
         });
+
+        // Update status indicator for initial content
+        updateStatusIndicator(statusIndicator, note.getContent(), languages[selectedLanguage[0]]);
+
+        // Add text change listener for line numbers and status indicator
+        contentInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updateLineNumbers(contentInput, lineNumbers);
+                updateStatusIndicator(statusIndicator, s.toString(), languages[selectedLanguage[0]]);
+                
+                try {
+                    if (s.length() > 0 && start < s.length()) {
+                        char currentChar = s.charAt(start);
+                        if (currentChar != '\n' && Character.isLetterOrDigit(currentChar)) {
+                            showCodeSnippets(contentInput, languages[selectedLanguage[0]], s.toString(), start);
+                        }
+                    }
+                } catch (Exception e) {
+                    // Handle string index errors
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateLineNumbers(contentInput, lineNumbers);
+            }
+        });
+
+        // Add scroll listener to keep line numbers synchronized
+        contentInput.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            lineNumbers.scrollTo(0, scrollY);
+        });
+
+        languageIndicator.setOnClickListener(v -> showLanguageSelector(languageIndicator, selectedLanguage));
 
         // Create the dialog
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
@@ -408,10 +660,11 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
         // Set click listener for save button
         saveIcon.setOnClickListener(v -> {
-            String updatedContent = inputText.getText().toString();
-            if (!updatedContent.isEmpty()) {
+            String updatedTitle = inputText.getText().toString();
+            String updatedContent = contentInput.getText().toString();
+            if (!updatedTitle.isEmpty()) {
                 // Update the note in the database with the selected language extension
-                dbHelper.updateNote(note.getId(), titleHolder[0] + languages[selectedLanguage[0]], updatedContent, note.getColorId(), note.getIsPinned());
+                dbHelper.updateNote(note.getId(), updatedTitle + languages[selectedLanguage[0]], updatedContent, note.getColorId(), note.getIsPinned());
 
                 // Refresh the notes list
                 loadNotes();
@@ -419,7 +672,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                 dialog.dismiss();
                 Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Content cannot be empty", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -446,7 +699,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     }
 
     @Override
-    public boolean onNavigationItemSelected(MenuItem item) {
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
 
         if (id == R.id.nav_item1) {
@@ -459,9 +712,76 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             ThemeHelper.toggleTheme(this); // Toggle dark mode
             recreate(); // Restart activity to apply theme
             return true;
+        } else if (item.getItemId() == R.id.nav_settings) {
+            showOSSettingsDialog();
         }
 
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    private void showOSSettingsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = getLayoutInflater().inflate(R.layout.os_settings_dialog, null);
+        builder.setView(view);
+
+        RadioGroup osRadioGroup = view.findViewById(R.id.osRadioGroup);
+        RadioButton windowsRadio = view.findViewById(R.id.windowsRadio);
+        RadioButton macRadio = view.findViewById(R.id.macRadio);
+        RadioButton linuxRadio = view.findViewById(R.id.linuxRadio);
+
+        // Load saved preference
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String savedOS = prefs.getString(SELECTED_OS, "Windows");
+        
+        switch (savedOS) {
+            case "Windows":
+                windowsRadio.setChecked(true);
+                break;
+            case "macOS":
+                macRadio.setChecked(true);
+                break;
+            case "Linux":
+                linuxRadio.setChecked(true);
+                break;
+        }
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        osRadioGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            String selectedOS;
+            if (checkedId == R.id.windowsRadio) {
+                selectedOS = "Windows";
+            } else if (checkedId == R.id.macRadio) {
+                selectedOS = "macOS";
+            } else {
+                selectedOS = "Linux";
+            }
+            
+            SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit();
+            editor.putString(SELECTED_OS, selectedOS);
+            editor.apply();
+            
+            dialog.dismiss();
+        });
+    }
+
+    private void showLanguageSelector(TextView languageIndicator, final int[] selectedLanguage) {
+        String[] languages = new String[]{".txt", ".php", ".java", ".py", ".js", ".html", ".css", ".xml", ".json", ".md"};
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.CustomDialogStyle);
+        builder.setTitle("Select Language")
+               .setSingleChoiceItems(languages, selectedLanguage[0], (dialog, which) -> {
+                   selectedLanguage[0] = which;
+                   languageIndicator.setText(languages[which]);
+                   dialog.dismiss();
+               });
+        
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        dialog.show();
     }
 }

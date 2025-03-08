@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select OS terminal"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <RadioGroup
+        android:id="@+id/osRadioGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/windowsRadio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Windows"
+            android:padding="12dp"
+            android:checked="true"/>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/macRadio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="macOS"
+            android:padding="12dp"/>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/linuxRadio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Linux"
+            android:padding="12dp"/>
+    </RadioGroup>
+</LinearLayout> 
