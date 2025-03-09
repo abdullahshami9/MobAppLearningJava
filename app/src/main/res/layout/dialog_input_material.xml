@@ -183,4 +183,27 @@
                 android:typeface="monospace" />
         </LinearLayout>
     </FrameLayout>
+
+    <!-- Output Section -->
+    <LinearLayout
+        android:id="@+id/outputSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginTop="8dp"
+        android:background="?attr/colorSurface"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/outputText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="100dp"
+            android:textSize="14sp"
+            android:fontFamily="monospace"
+            android:textColor="?android:attr/textColorPrimary"/>
+
+    </LinearLayout>
+
 </LinearLayout>

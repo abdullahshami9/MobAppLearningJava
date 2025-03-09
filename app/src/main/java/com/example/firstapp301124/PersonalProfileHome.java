@@ -740,6 +740,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             moreOptionsIcon.setOnClickListener(v -> {
                 PopupMenu popup = new PopupMenu(this, moreOptionsIcon);
                 popup.getMenu().add("Open Terminal");
+                popup.getMenu().add("Run");
                 popup.getMenu().add("Open in Directory");
                 popup.getMenu().add("Delete");
                 popup.setOnMenuItemClickListener(item -> {
@@ -756,6 +757,41 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                                         .start();
                                 }
                             }
+                            break;
+                        case "Run":
+                            // Initialize output section
+                            View outputSection = dialogView.findViewById(R.id.outputSection);
+                            TextView outputText = dialogView.findViewById(R.id.outputText);
+                            
+                            // Show output section with animation
+                            outputSection.setVisibility(View.VISIBLE);
+                            outputSection.setAlpha(0f);
+                            outputSection.animate()
+                                .alpha(1f)
+                                .setDuration(200)
+                                .start();
+                            
+                            outputText.setText("Running code...");
+                            
+                            // Execute the code
+                            String code = contentInput.getText().toString();
+                            String extension = languages[selectedLanguage[0]];
+                            
+                            // Initialize CodeExecutor if not already done
+                            CodeExecutor codeExecutor = new CodeExecutor(this);
+                            
+                            codeExecutor.executeCode(code, extension, (output, error) -> {
+                                runOnUiThread(() -> {
+                                    if (!error.isEmpty()) {
+                                        outputText.setText("Error:\n" + error);
+                                        outputText.setTextColor(Color.RED);
+                                    } else {
+                                        outputText.setText("Output:\n" + output);
+                                        outputText.setTextColor(ThemeHelper.isDarkTheme(this) ? 
+                                            Color.WHITE : Color.BLACK);
+                                    }
+                                });
+                            });
                             break;
                         case "Open in Directory":
                             // Handle directory opening
