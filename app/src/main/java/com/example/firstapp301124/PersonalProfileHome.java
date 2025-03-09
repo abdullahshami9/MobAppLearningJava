@@ -780,15 +780,42 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                             // Initialize CodeExecutor if not already done
                             CodeExecutor codeExecutor = new CodeExecutor(this);
                             
-                            codeExecutor.executeCode(code, extension, (output, error) -> {
+                            codeExecutor.executeCode(code, extension, result -> {
                                 runOnUiThread(() -> {
-                                    if (!error.isEmpty()) {
-                                        outputText.setText("Error:\n" + error);
+                                    // Update status indicator based on execution status
+                                    int statusColor;
+                                    switch (result.status) {
+                                        case NOT_EXECUTED:
+                                            statusColor = Color.BLUE;
+                                            break;
+                                        case EXECUTING:
+                                            statusColor = Color.BLUE;
+                                            break;
+                                        case SUCCESS:
+                                            statusColor = Color.parseColor("#4CAF50"); // Green
+                                            break;
+                                        case ERROR:
+                                            statusColor = Color.RED;
+                                            break;
+                                        default:
+                                            statusColor = Color.BLUE;
+                                    }
+                                    statusIndicator.setBackgroundTintList(ColorStateList.valueOf(statusColor));
+
+                                    // Update output text
+                                    if (!result.error.isEmpty()) {
+                                        outputText.setText("Error:\n" + result.error);
                                         outputText.setTextColor(Color.RED);
+                                        
+                                        // Highlight error lines in the editor
+                                        highlightErrorLines(contentInput, result.errorLines);
                                     } else {
-                                        outputText.setText("Output:\n" + output);
+                                        outputText.setText("Output:\n" + result.output);
                                         outputText.setTextColor(ThemeHelper.isDarkTheme(this) ? 
                                             Color.WHITE : Color.BLACK);
+                                        
+                                        // Clear any error highlighting
+                                        clearErrorHighlighting(contentInput);
                                     }
                                 });
                             });
@@ -1173,5 +1200,50 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             default:
                 return "> ";
         }
+    }
+
+    // Add these new methods for error line highlighting
+    private void highlightErrorLines(EditText contentInput, List<Integer> errorLines) {
+        String content = contentInput.getText().toString();
+        android.text.SpannableString spannableString = new android.text.SpannableString(content);
+        
+        // Find line starts
+        int pos = 0;
+        int currentLine = 1;
+        
+        while (pos < content.length()) {
+            if (errorLines.contains(currentLine)) {
+                // Find line end
+                int lineEnd = content.indexOf('\n', pos);
+                if (lineEnd == -1) lineEnd = content.length();
+                
+                // Add red underline to the line
+                spannableString.setSpan(
+                    new android.text.style.UnderlineSpan(),
+                    pos,
+                    lineEnd,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                );
+                spannableString.setSpan(
+                    new android.text.style.ForegroundColorSpan(Color.RED),
+                    pos,
+                    lineEnd,
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                );
+            }
+            
+            // Move to next line
+            int nextPos = content.indexOf('\n', pos);
+            if (nextPos == -1) break;
+            pos = nextPos + 1;
+            currentLine++;
+        }
+        
+        contentInput.setText(spannableString);
+    }
+
+    private void clearErrorHighlighting(EditText contentInput) {
+        String content = contentInput.getText().toString();
+        contentInput.setText(content);
     }
 }
