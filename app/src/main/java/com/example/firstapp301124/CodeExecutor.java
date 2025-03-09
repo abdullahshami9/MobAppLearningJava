@@ -10,6 +10,7 @@ import android.webkit.WebViewClient;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.json.JSONObject;
 
 public class CodeExecutor {
     private Context context;
@@ -57,41 +60,33 @@ public class CodeExecutor {
     public void executeCode(String code, String extension, CodeExecutionCallback callback) {
         ExecutionResult result = new ExecutionResult();
         result.status = ExecutionStatus.EXECUTING;
+        
+        try {
+            switch (extension.toLowerCase()) {
+                case ".js":
+                    executeJavaScript(code, result, callback);
+                    return;
+                case ".php":
+                    executePHPInWebView(code, result, callback);
+                    return;
+                case ".py":
+                    executePythonInWebView(code, result, callback);
+                    return;
+                case ".java":
+                    executeJavaInWebView(code, result, callback);
+                    return;
+                default:
+                    result.error = "Unsupported file type: " + extension;
+                    result.status = ExecutionStatus.ERROR;
+                    result.errorLines.add(1);
+            }
+        } catch (Exception e) {
+            result.error = e.getMessage();
+            result.status = ExecutionStatus.ERROR;
+            result.errorLines.add(1);
+        }
+        
         mainHandler.post(() -> callback.onExecutionComplete(result));
-
-        executorService.execute(() -> {
-            try {
-                switch (extension.toLowerCase()) {
-                    case ".js":
-                        executeJavaScript(code, result, callback);
-                        return;
-                    case ".py":
-                        executePython(code, result);
-                        break;
-                    case ".java":
-                        executeJava(code, result);
-                        break;
-                    case ".php":
-                        executePHP(code, result);
-                        break;
-                    default:
-                        result.error = "Unsupported language: " + extension;
-                        result.status = ExecutionStatus.ERROR;
-                }
-            } catch (Exception e) {
-                result.error = e.getMessage();
-                result.status = ExecutionStatus.ERROR;
-                extractErrorLines(result.error, result.errorLines);
-            }
-
-            if (result.error.isEmpty()) {
-                result.status = ExecutionStatus.SUCCESS;
-            } else {
-                result.status = ExecutionStatus.ERROR;
-            }
-            
-            mainHandler.post(() -> callback.onExecutionComplete(result));
-        });
     }
 
     private void executeJavaScript(String code, ExecutionResult result, CodeExecutionCallback callback) {
@@ -102,13 +97,32 @@ public class CodeExecutor {
             class JSInterface {
                 @JavascriptInterface
                 public void log(String message) {
-                    result.output += message + "\n";
+                    mainHandler.post(() -> {
+                        result.output += message + "\n";
+                    });
                 }
 
                 @JavascriptInterface
                 public void error(String message, int lineNumber) {
-                    result.error += message + "\n";
-                    result.errorLines.add(lineNumber);
+                    mainHandler.post(() -> {
+                        result.error += message + "\n";
+                        result.errorLines.add(lineNumber);
+                        result.status = ExecutionStatus.ERROR;
+                        callback.onExecutionComplete(result);
+                    });
+                }
+
+                @JavascriptInterface
+                public void complete() {
+                    mainHandler.post(() -> {
+                        if (result.error.isEmpty()) {
+                            result.status = ExecutionStatus.SUCCESS;
+                            if (result.output.isEmpty()) {
+                                result.output = "Code executed successfully.\n";
+                            }
+                        }
+                        callback.onExecutionComplete(result);
+                    });
                 }
             }
 
@@ -116,25 +130,221 @@ public class CodeExecutor {
 
             String wrappedCode = 
                 "try {" +
-                "  console.log = function(message) { Android.log(message.toString()); };" +
-                "  " + code +
+                "  let output = '';" +
+                "  console.log = function(message) { " +
+                "    Android.log(message.toString());" +
+                "  };" +
+                "  " + code + "\n" +
+                "  if (output === '') { console.log('Code executed successfully.'); }" +
+                "  setTimeout(function() { Android.complete(); }, 100);" +
                 "} catch(e) {" +
-                "  Android.error(e.message, e.lineNumber);" +
+                "  Android.error(e.message, (e.lineNumber || 1));" +
                 "}";
 
             webView.setWebViewClient(new WebViewClient() {
                 @Override
                 public void onPageFinished(WebView view, String url) {
                     view.evaluateJavascript(wrappedCode, null);
-                    mainHandler.postDelayed(() -> {
-                        result.status = result.error.isEmpty() ? 
-                            ExecutionStatus.SUCCESS : ExecutionStatus.ERROR;
-                        callback.onExecutionComplete(result);
-                    }, 500);
                 }
             });
 
             webView.loadData("<html><body></body></html>", "text/html", "UTF-8");
+        });
+    }
+
+    private void executePythonInWebView(String code, ExecutionResult result, CodeExecutionCallback callback) {
+        mainHandler.post(() -> {
+            WebView webView = new WebView(context);
+            webView.getSettings().setJavaScriptEnabled(true);
+            
+            // Load Skulpt (Python-to-JavaScript implementation)
+            String html = "<html><body>" +
+                "<script src='https://skulpt.org/js/skulpt.min.js'></script>" +
+                "<script src='https://skulpt.org/js/skulpt-stdlib.js'></script>" +
+                "<script>" +
+                "window.onerror = function(msg, url, line) { " +
+                "    window.Android.onError('JavaScript error: ' + msg + ' at line ' + line);" +
+                "    return true;" +
+                "};" +
+                "window.onload = function() {" +
+                "    function outf(text) { window.Android.onOutput(text); }" +
+                "    function builtinRead(x) {" +
+                "        if (Sk.builtinFiles === undefined || Sk.builtinFiles['files'][x] === undefined)" +
+                "            throw 'File not found: ' + x;" +
+                "        return Sk.builtinFiles['files'][x];" +
+                "    }" +
+                "    Sk.configure({" +
+                "        output: outf," +
+                "        read: builtinRead," +
+                "        __future__: Sk.python3" +
+                "    });" +
+                "    try {" +
+                "        Sk.importMainWithBody('<stdin>', false, " + JSONObject.quote(code) + ", true);" +
+                "        window.Android.onComplete();" +
+                "    } catch(e) {" +
+                "        window.Android.onError(e.toString());" +
+                "    }" +
+                "};" +
+                "</script></body></html>";
+
+            class AndroidInterface {
+                @JavascriptInterface
+                public void onOutput(String output) {
+                    result.output += output;
+                }
+
+                @JavascriptInterface
+                public void onComplete() {
+                    if (result.error.isEmpty()) {
+                        result.status = ExecutionStatus.SUCCESS;
+                    }
+                }
+
+                @JavascriptInterface
+                public void onError(String error) {
+                    result.error = error;
+                    result.status = ExecutionStatus.ERROR;
+                    // Parse line number from Python error message
+                    try {
+                        String[] parts = error.split("line ");
+                        if (parts.length > 1) {
+                            int lineNum = Integer.parseInt(parts[1].split("\\D")[0]);
+                            result.errorLines.add(lineNum);
+                        } else {
+                            result.errorLines.add(1);
+                        }
+                    } catch (Exception e) {
+                        result.errorLines.add(1);
+                    }
+                }
+            }
+
+            webView.addJavascriptInterface(new AndroidInterface(), "Android");
+            webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+        });
+    }
+
+    private void executeJavaInWebView(String code, ExecutionResult result, CodeExecutionCallback callback) {
+        // For Java, we'll use a simple Java-to-JavaScript transpiler approach
+        // This is a basic implementation that handles simple Java code
+        mainHandler.post(() -> {
+            WebView webView = new WebView(context);
+            webView.getSettings().setJavaScriptEnabled(true);
+            
+            // Convert Java code to JavaScript (basic conversion)
+            String jsCode = convertJavaToJS(code);
+            
+            String html = "<html><body><script>" +
+                "try {" +
+                "    let console = { log: function(text) { window.Android.onOutput(text + '\\n'); } };" +
+                "    " + jsCode +
+                "    window.Android.onComplete('');" +
+                "} catch(e) {" +
+                "    window.Android.onError(e.toString());" +
+                "}" +
+                "</script></body></html>";
+
+            class AndroidInterface {
+                @JavascriptInterface
+                public void onOutput(String output) {
+                    result.output += output;
+                }
+
+                @JavascriptInterface
+                public void onComplete(String unused) {
+                    result.status = ExecutionStatus.SUCCESS;
+                }
+
+                @JavascriptInterface
+                public void onError(String error) {
+                    result.error = error;
+                    result.status = ExecutionStatus.ERROR;
+                    result.errorLines.add(1);
+                }
+            }
+
+            webView.addJavascriptInterface(new AndroidInterface(), "Android");
+            webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+        });
+    }
+
+    private String convertJavaToJS(String javaCode) {
+        // Basic Java to JavaScript conversion
+        // This is a simplified version - you might want to use a proper transpiler
+        return javaCode
+            .replace("System.out.println", "console.log")
+            .replace("public class", "class")
+            .replace("public static void main(String[] args)", "function main()");
+    }
+
+    private void executePHPInWebView(String code, ExecutionResult result, CodeExecutionCallback callback) {
+        mainHandler.post(() -> {
+            WebView webView = new WebView(context);
+            webView.getSettings().setJavaScriptEnabled(true);
+            webView.getSettings().setDomStorageEnabled(true);
+            
+            class AndroidInterface {
+                @JavascriptInterface
+                public void onOutput(String output) {
+                    mainHandler.post(() -> {
+                        result.output += output;
+                    });
+                }
+
+                @JavascriptInterface
+                public void onComplete() {
+                    mainHandler.post(() -> {
+                        if (result.error.isEmpty()) {
+                            result.status = ExecutionStatus.SUCCESS;
+                            if (result.output.isEmpty()) {
+                                result.output = "PHP code executed successfully.\n";
+                            }
+                        }
+                        callback.onExecutionComplete(result);
+                    });
+                }
+
+                @JavascriptInterface
+                public void onError(String error) {
+                    mainHandler.post(() -> {
+                        result.error = error;
+                        result.status = ExecutionStatus.ERROR;
+                        result.errorLines.add(1);
+                        callback.onExecutionComplete(result);
+                    });
+                }
+
+                @JavascriptInterface
+                public void debug(String message) {
+                    mainHandler.post(() -> {
+                        result.output += "Debug: " + message + "\n";
+                    });
+                }
+            }
+
+            webView.addJavascriptInterface(new AndroidInterface(), "Android");
+            
+            // Simple PHP to JavaScript converter
+            String phpCode = code.replaceAll("\\<\\?php|\\?\\>", "")  // Remove PHP tags
+                               .replaceAll("echo\\s+", "phpPrint(")    // Convert echo to print
+                               .replaceAll(";", ");")                  // Ensure semicolons
+                               .trim();
+
+            String html = "<html><body>" +
+                "<script>" +
+                "function phpPrint(str) { Android.onOutput(str + '\\n'); }" +
+                "try {" +
+                "    Android.debug('Starting PHP execution');" +
+                "    " + phpCode + "\n" +
+                "    Android.debug('PHP execution completed successfully');" +
+                "    setTimeout(function() { Android.onComplete(); }, 100);" +
+                "} catch(e) {" +
+                "    Android.debug('PHP execution error: ' + e.message);" +
+                "    Android.onError(e.message);" +
+                "}" +
+                "</script></body></html>";
+
+            webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null);
         });
     }
 
@@ -208,22 +418,40 @@ public class CodeExecutor {
             writer.write(code);
         }
 
-        ProcessBuilder processBuilder = new ProcessBuilder("php", tempFile.getAbsolutePath());
-        Process process = processBuilder.start();
-        
-        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            result.output += line + "\n";
-        }
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder("php", tempFile.getAbsolutePath());
+            Process process = processBuilder.start();
+            
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                result.output += line + "\n";
+            }
 
-        BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-        while ((line = errorReader.readLine()) != null) {
-            result.error += line + "\n";
-            extractErrorLines(line, result.errorLines);
-        }
+            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            while ((line = errorReader.readLine()) != null) {
+                result.error += line + "\n";
+                extractErrorLines(line, result.errorLines);
+            }
 
-        tempFile.delete();
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                if (result.error.isEmpty()) {
+                    result.error = "PHP process exited with code " + exitCode;
+                }
+                result.status = ExecutionStatus.ERROR;
+            }
+        } catch (IOException e) {
+            if (e.getMessage() != null && e.getMessage().contains("error=2, No such file or directory")) {
+                result.error = "PHP is not installed on this device. Please install PHP to run PHP code.";
+                result.errorLines.add(1); // Highlight the first line to indicate configuration error
+            } else {
+                result.error = "Error executing PHP code: " + e.getMessage();
+            }
+            result.status = ExecutionStatus.ERROR;
+        } finally {
+            tempFile.delete();
+        }
     }
 
     private void extractErrorLines(String errorMessage, List<Integer> errorLines) {

@@ -41,6 +41,7 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.checkbox.MaterialCheckBox;
+import com.example.firstapp301124.CodeExecutor.ExecutionStatus;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -784,6 +785,13 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                                 runOnUiThread(() -> {
                                     // Update status indicator based on execution status
                                     int statusColor;
+                                    
+                                    // Force ERROR status if there's an error message
+                                    if (!result.error.isEmpty()) {
+                                        result.status = ExecutionStatus.ERROR;
+                                    }
+                                    
+                                    // Set color based on status
                                     switch (result.status) {
                                         case NOT_EXECUTED:
                                             statusColor = Color.BLUE;
@@ -800,6 +808,8 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                                         default:
                                             statusColor = Color.BLUE;
                                     }
+                                    
+                                    // Apply the color to the status indicator
                                     statusIndicator.setBackgroundTintList(ColorStateList.valueOf(statusColor));
 
                                     // Update output text
