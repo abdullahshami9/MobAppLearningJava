@@ -83,7 +83,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Chat with AI"
+                    android:text="Chat with Code Base"
                     android:textSize="18sp"
                     android:textColor="@color/black"
                     android:layout_gravity="center"/>

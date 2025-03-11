@@ -2,6 +2,7 @@ package com.example.firstapp301124;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -14,11 +15,15 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.provider.OpenableColumns;
 import android.text.Editable;
+import android.text.Spannable;
+import android.text.SpannableString;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -29,6 +34,12 @@ import android.widget.Toast;
 import android.widget.PopupMenu;
 import android.widget.ImageButton;
 import android.widget.RelativeLayout;
+import android.widget.LinearLayout;
+import android.text.InputType;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
+import android.view.inputmethod.InputMethodManager;
+
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -45,6 +56,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.checkbox.MaterialCheckBox;
 import com.example.firstapp301124.CodeExecutor.ExecutionStatus;
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,6 +79,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private RaabtaaDBHelper dbHelper;
     private List<Note> notesList = new ArrayList<>();
     private int currentUserId = 1; // Replace with the actual user ID
+    private LinearLayout tagsContainer;
 
     private static final String PREFS_NAME = "NotesAppPrefs";
     private static final String SELECTED_OS = "selected_os";
@@ -129,6 +142,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         EditText searchBar = toolbar.findViewById(R.id.searchBar);
         ImageView menuIcon = toolbar.findViewById(R.id.menuIcon);
         ImageView profileIcon = toolbar.findViewById(R.id.profileIcon);
+        tagsContainer = findViewById(R.id.tagsContainer);
 
         // Set the background color based on the current theme
         if (ThemeHelper.isDarkTheme(this)) {
@@ -951,10 +965,52 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                                     
                                     // Initialize chat components inside the dialog
                                     ImageView closeChat = dialogView.findViewById(R.id.closeChat);
-                                    TextView aiStatus = dialogView.findViewById(R.id.aiStatus);
                                     RecyclerView dialogChatRecyclerView = dialogView.findViewById(R.id.dialogChatRecyclerView);
                                     EditText dialogChatInput = dialogView.findViewById(R.id.dialogChatInput);
                                     ImageButton dialogSendButton = dialogView.findViewById(R.id.dialogSendButton);
+                                    LinearLayout tagsContainer = dialogView.findViewById(R.id.tagsContainer);
+                                    LinearLayout addTagButton = dialogView.findViewById(R.id.addTagButton);
+                                    
+                                    // Set up add tag button
+                                    if (addTagButton != null) {
+                                        addTagButton.setOnClickListener(view -> {
+                                            showAddTagDialog();
+                                        });
+                                    }
+                                    
+                                    // Make tags clickable and long-pressable for deletion
+                                    if (tagsContainer != null) {
+                                        for (int i = 0; i < tagsContainer.getChildCount(); i++) {
+                                            View child = tagsContainer.getChildAt(i);
+                                            if (child instanceof TextView) {
+                                                final TextView tagView = (TextView) child;
+                                                
+                                                // Skip the add button
+                                                if (child.getId() == R.id.addTagButton) {
+                                                    continue;
+                                                }
+                                                
+                                                // Make tag clickable
+                                                tagView.setClickable(true);
+                                                tagView.setFocusable(true);
+                                                tagView.setBackground(getResources().getDrawable(R.drawable.tag_background, getTheme()));
+                                                
+                                                // Click to use as prompt
+                                                tagView.setOnClickListener(view -> {
+                                                    String prompt = "Help me with " + tagView.getText().toString();
+                                                    dialogChatInput.setText(prompt);
+                                                    dialogChatInput.setSelection(prompt.length());
+                                                    dialogChatInput.requestFocus();
+                                                });
+                                                
+                                                // Long press to delete
+                                                tagView.setOnLongClickListener(longClickView -> {
+                                                    showDeleteTagDialog(tagView.getText().toString(), tagView);
+                                                    return true;
+                                                });
+                                            }
+                                        }
+                                    }
                                     
                                     // Set up close button click listener
                                     if (closeChat != null) {
@@ -1008,10 +1064,8 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                                         dialogChatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
                                         
                                         // Add welcome message from AI
-                                        if (aiStatus != null) {
-                                            dialogChatMessages.add(new ChatMessage("Hi there! I'm your AI coding assistant. How can I help with your code today?", false));
-                                            dialogChatAdapter.notifyDataSetChanged();
-                                        }
+                                        dialogChatMessages.add(new ChatMessage("Hi there! I'm your AI coding assistant. How can I help with your code today?", false));
+                                        dialogChatAdapter.notifyDataSetChanged();
                                         
                                         // Set up send button click listener
                                         dialogSendButton.setOnClickListener(view -> {
@@ -1023,22 +1077,12 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                                                 dialogChatRecyclerView.scrollToPosition(dialogChatMessages.size() - 1);
                                                 dialogChatInput.setText("");
                                                 
-                                                // Update AI status
-                                                if (aiStatus != null) {
-                                                    aiStatus.setText("Analyzing your code...");
-                                                }
-                                                
                                                 // TODO: Add AI response logic
                                                 // Simulate AI response for now
                                                 new Handler().postDelayed(() -> {
                                                     dialogChatMessages.add(new ChatMessage("I've analyzed your code. It looks like you're using JavaScript to log a number. Is there anything specific you'd like help with?", false));
                                                     dialogChatAdapter.notifyItemInserted(dialogChatMessages.size() - 1);
                                                     dialogChatRecyclerView.scrollToPosition(dialogChatMessages.size() - 1);
-                                                    
-                                                    // Update AI status back to ready
-                                                    if (aiStatus != null) {
-                                                        aiStatus.setText("Ready to assist you with your code");
-                                                    }
                                                 }, 2000);
                                             }
                                         });
@@ -1631,5 +1675,183 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                 messageText = itemView.findViewById(R.id.messageText);
             }
         }
+    }
+
+    // Add this new method to handle adding custom tags
+    private void showAddTagDialog() {
+        // Create a custom dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.AlertDialogTheme);
+        
+        // Inflate and set the custom layout
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_tag, null);
+        builder.setView(dialogView);
+        
+        // Get the input field
+        TextInputEditText tagNameInput = dialogView.findViewById(R.id.tagNameInput);
+        
+        // Create the dialog
+        AlertDialog dialog = builder.create();
+        
+        // Create stylized button text
+        SpannableString positiveText = new SpannableString("ADD");
+        positiveText.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorPrimary)), 0, positiveText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        positiveText.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), 0, positiveText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        SpannableString negativeText = new SpannableString("CANCEL");
+        negativeText.setSpan(new ForegroundColorSpan(getResources().getColor(android.R.color.darker_gray)), 0, negativeText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        // Add tag the buttons
+        // ADD -> +
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, "ADD", (dialogInterface, which) -> {
+            String tagName = tagNameInput.getText().toString().trim();
+            if (!tagName.isEmpty()) {
+                addTag(tagName);
+            }
+        });
+        
+        dialog.setButton(AlertDialog.BUTTON_NEGATIVE, "CANCEL", (dialogInterface, which) -> {
+            // Dialog will be dismissed automatically
+        });
+        
+        // Show the dialog
+        dialog.show();
+        
+        // Style the buttons after dialog is shown
+        Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        
+        positiveButton.setText(positiveText);
+        negativeButton.setText(negativeText);
+        
+        // Auto-show keyboard
+        tagNameInput.requestFocus();
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(tagNameInput, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    // Helper method to show delete tag confirmation
+    private void showDeleteTagDialog(String tagName, View tagView) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.AlertDialogTheme);
+        
+        // Create stylized message
+        SpannableString message = new SpannableString("Delete tag '" + tagName + "'?");
+        int startPos = message.toString().indexOf(tagName);
+        if (startPos >= 0) {
+            message.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), startPos, startPos + tagName.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            message.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorPrimary)), startPos, startPos + tagName.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        
+        builder.setMessage(message);
+        
+        // Create stylized button text
+        SpannableString positiveText = new SpannableString("DELETE");
+        positiveText.setSpan(new ForegroundColorSpan(getResources().getColor(android.R.color.holo_red_light)), 0, positiveText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        positiveText.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), 0, positiveText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        SpannableString negativeText = new SpannableString("CANCEL");
+        negativeText.setSpan(new ForegroundColorSpan(getResources().getColor(android.R.color.darker_gray)), 0, negativeText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        // Add the buttons
+        builder.setPositiveButton("DELETE", (dialog, which) -> {
+            // Animate tag removal
+            tagView.animate()
+                    .alpha(0f)
+                    .translationX(tagView.getWidth())
+                    .setDuration(300)
+                    .withEndAction(() -> {
+                        tagsContainer.removeView(tagView);
+                    })
+                    .start();
+        });
+        
+        builder.setNegativeButton("CANCEL", (dialog, which) -> {
+            // Dialog will be dismissed automatically
+        });
+        
+        // Show the dialog
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        // Style the buttons after dialog is shown
+        Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        
+        positiveButton.setText(positiveText);
+        negativeButton.setText(negativeText);
+    }
+
+    // Helper method to add a new tag to the container
+    private void addTag(String tagText) {
+        if (tagsContainer != null) {
+            TextView newTag = new TextView(this);
+            newTag.setText(tagText);
+            newTag.setTextSize(12);
+            newTag.setTextColor(getResources().getColor(android.R.color.black, getTheme()));
+            newTag.setBackground(getResources().getDrawable(R.drawable.tag_background, getTheme()));
+            newTag.setPadding(
+                dpToPx(12),  // left
+                dpToPx(6),   // top
+                dpToPx(12),  // right
+                dpToPx(6)    // bottom
+            );
+            
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            params.setMarginEnd(dpToPx(8));
+            newTag.setLayoutParams(params);
+            
+            // Make the tag clickable
+            newTag.setClickable(true);
+            newTag.setFocusable(true);
+            
+            // Click to use as prompt
+            newTag.setOnClickListener(view -> {
+                EditText dialogChatInput = ((View) tagsContainer.getParent().getParent().getParent()).findViewById(R.id.dialogChatInput);
+                if (dialogChatInput != null) {
+                    String prompt = "Help me with " + newTag.getText().toString();
+                    dialogChatInput.setText(prompt);
+                    dialogChatInput.setSelection(prompt.length());
+                    dialogChatInput.requestFocus();
+                }
+            });
+            
+            // Long press to delete
+            newTag.setOnLongClickListener(longClickView -> {
+                showDeleteTagDialog(newTag.getText().toString(), newTag);
+                return true;
+            });
+            
+            // Remove the add button
+            View addButton = null;
+            for (int i = 0; i < tagsContainer.getChildCount(); i++) {
+                View child = tagsContainer.getChildAt(i);
+                if (child.getId() == R.id.addTagButton) {
+                    addButton = child;
+                    break;
+                }
+            }
+            
+            if (addButton != null) {
+                tagsContainer.removeView(addButton);
+            }
+            
+            // Add the new tag
+            tagsContainer.addView(newTag);
+            
+            // Add the add button back
+            if (addButton != null) {
+                tagsContainer.addView(addButton);
+            }
+            
+            // Show success toast
+            Toast.makeText(this, "Tag added: " + tagText, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // Helper method to convert dp to pixels
+    private int dpToPx(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density);
     }
 }
