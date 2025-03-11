@@ -8,8 +8,14 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class RaabtaaDBHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "RaabtaaTest2.db";
@@ -315,18 +321,20 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(KEY_USER_ID, userId);
         values.put(KEY_TITLE, title);
-        values.put(KEY_CONTENT, content);
+        // Store a placeholder in the DB instead of the full content
+        values.put(KEY_CONTENT, "Content stored in external file");
         values.put(KEY_COLOR_ID, colorId);
         values.put(KEY_IS_PINNED, isPinned);
-
-        try {
-            db.insert(TABLE_NOTES, null, values);
-            Toast.makeText(context, "Note added successfully", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Log.e("DB_ERROR", "Note insertion failed: " + e.getMessage());
-        } finally {
-            db.close();
-        }
+        values.put(KEY_CREATED_AT, getCurrentDateTime());
+        values.put(KEY_UPDATED_AT, getCurrentDateTime());
+        
+        // Insert the note and get the ID
+        long noteId = db.insert(TABLE_NOTES, null, values);
+        
+        // Save content to file
+        saveContentToFile((int)noteId, content);
+        
+        db.close();
     }
 
     // Update an existing note
@@ -334,37 +342,59 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(KEY_TITLE, title);
-        values.put(KEY_CONTENT, content);
+        // Don't store content in DB anymore
+        // values.put(KEY_CONTENT, content);
         values.put(KEY_COLOR_ID, colorId);
         values.put(KEY_IS_PINNED, isPinned);
+        values.put(KEY_UPDATED_AT, getCurrentDateTime());
+
+        // Save content to file
+        boolean contentSaved = saveContentToFile(id, content);
 
         int rowsAffected = db.update(TABLE_NOTES, values, KEY_ID + " = ?", new String[]{String.valueOf(id)});
         db.close();
-        return rowsAffected > 0;
+        
+        return rowsAffected > 0 && contentSaved;
     }
 
     // Retrieve all notes for a user
     public List<Note> getNotesByUser(int userId) {
         List<Note> notes = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_NOTES + " WHERE " + KEY_USER_ID + " = ?", new String[]{String.valueOf(userId)});
+        
+        try {
+            // First, query without the content field to avoid loading large data all at once
+            Cursor cursor = db.rawQuery(
+                "SELECT " + KEY_ID + ", " + KEY_USER_ID + ", " + KEY_TITLE + ", " +
+                KEY_COLOR_ID + ", " + KEY_IS_PINNED + ", " + KEY_CREATED_AT + ", " + KEY_UPDATED_AT +
+                " FROM " + TABLE_NOTES + 
+                " WHERE " + KEY_USER_ID + " = ?", 
+                new String[]{String.valueOf(userId)}
+            );
 
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                int id = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_ID));
-                String title = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TITLE));
-                String content = cursor.getString(cursor.getColumnIndexOrThrow(KEY_CONTENT));
-                int colorId = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_COLOR_ID));
-                int isPinned = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_IS_PINNED));
-                String createdAt = cursor.getString(cursor.getColumnIndexOrThrow(KEY_CREATED_AT));
-                String updatedAt = cursor.getString(cursor.getColumnIndexOrThrow(KEY_UPDATED_AT));
-
-                notes.add(new Note(id, userId, title, content, colorId, isPinned, createdAt, updatedAt));
-            } while (cursor.moveToNext());
-            cursor.close();
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    int id = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_ID));
+                    String title = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TITLE));
+                    int colorId = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_COLOR_ID));
+                    int isPinned = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_IS_PINNED));
+                    String createdAt = cursor.getString(cursor.getColumnIndexOrThrow(KEY_CREATED_AT));
+                    String updatedAt = cursor.getString(cursor.getColumnIndexOrThrow(KEY_UPDATED_AT));
+                    
+                    // Load content from file system instead of database
+                    String content = loadContentFromFile(id);
+                    
+                    Note note = new Note(id, userId, title, content, colorId, isPinned, createdAt, updatedAt);
+                    notes.add(note);
+                } while (cursor.moveToNext());
+                cursor.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            db.close();
         }
-
-        db.close();
+        
         return notes;
     }
 
@@ -374,5 +404,79 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
         int rowsAffected = db.delete(TABLE_NOTES, KEY_ID + " = ?", new String[]{String.valueOf(id)});
         db.close();
         return rowsAffected > 0;
+    }
+
+    // Helper method to save content to a file
+    private boolean saveContentToFile(int noteId, String content) {
+        try {
+            File directory = new File(context.getFilesDir(), "note_contents");
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
+            
+            File file = new File(directory, "note_" + noteId + ".txt");
+            FileOutputStream fos = new FileOutputStream(file);
+            fos.write(content.getBytes());
+            fos.close();
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // Helper method to load content from a file
+    private String loadContentFromFile(int noteId) {
+        try {
+            File directory = new File(context.getFilesDir(), "note_contents");
+            File file = new File(directory, "note_" + noteId + ".txt");
+            
+            if (!file.exists()) {
+                // Try to load from database as fallback for older notes
+                return loadContentFromDatabase(noteId);
+            }
+            
+            FileInputStream fis = new FileInputStream(file);
+            byte[] data = new byte[(int) file.length()];
+            fis.read(data);
+            fis.close();
+            
+            return new String(data, "UTF-8");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ""; // Return empty string if file can't be read
+        }
+    }
+
+    // Fallback method to load content from database
+    private String loadContentFromDatabase(int noteId) {
+        String content = "";
+        SQLiteDatabase db = this.getReadableDatabase();
+        
+        try {
+            Cursor cursor = db.rawQuery(
+                "SELECT " + KEY_CONTENT + " FROM " + TABLE_NOTES + " WHERE " + KEY_ID + " = ?",
+                new String[]{String.valueOf(noteId)}
+            );
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                content = cursor.getString(cursor.getColumnIndexOrThrow(KEY_CONTENT));
+                cursor.close();
+                
+                // Migrate this content to a file for future use
+                saveContentToFile(noteId, content);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        return content;
+    }
+
+    // Helper method to get current date and time as a string
+    private String getCurrentDateTime() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        Date date = new Date();
+        return dateFormat.format(date);
     }
 }

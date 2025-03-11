@@ -2,208 +2,331 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp"
+    android:orientation="horizontal"
     android:background="@drawable/item_background"
+    android:padding="0dp"
+    android:baselineAligned="false"
     android:elevation="8dp">
-
-    <RelativeLayout
-        android:id="@+id/titleBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="8dp">
-
-        <TextView
-            android:id="@+id/fileTitle"
-            android:layout_width="wrap_content"
+    
+    <!-- Left side container: Editor + title bar -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp">
+        
+        <!-- Title bar - Only on left side -->
+        <RelativeLayout
+            android:id="@+id/titleBar"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp">
+
+            <TextView
+                android:id="@+id/fileTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/moreOptionsIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:src="@drawable/ic_more"
+                android:padding="2dp" />
+
+            <TextView
+                android:id="@+id/languageIndicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toStartOf="@id/moreOptionsIcon"
+                android:layout_centerVertical="true"
+                android:text=".txt"
+                android:textColor="#808080"
+                android:textSize="14sp"
+                android:padding="4dp"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"/>
+
+            <View
+                android:id="@+id/statusIndicator"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_toStartOf="@id/languageIndicator"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/status_indicator_background"/>
+        </RelativeLayout>
+        
+        <!-- Title input -->
+        <EditText
+            android:id="@+id/inputText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter title"
+            android:padding="12dp"
             android:textSize="16sp"
-            android:textStyle="bold" />
+            android:backgroundTint="@color/white"
+            android:textColorHint="@color/black"
+            android:textColor="@color/black"
+            android:inputType="text"
+            android:background="@drawable/edit_text_background"
+            android:layout_marginBottom="8dp"/>
+        
+        <!-- Code editor -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
 
-        <ImageView
-            android:id="@+id/moreOptionsIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:src="@drawable/ic_more"
-            android:padding="2dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/languageIndicator"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_toStartOf="@id/moreOptionsIcon"
-            android:layout_centerVertical="true"
-            android:text=".txt"
-            android:textColor="#808080"
-            android:textSize="14sp"
-            android:padding="4dp"
-            android:layout_marginEnd="8dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackground"/>
+                <TextView
+                    android:id="@+id/lineNumbers"
+                    android:layout_width="40dp"
+                    android:layout_height="match_parent"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:textColor="#808080"
+                    android:textSize="12sp"
+                    android:gravity="end"
+                    android:fontFamily="monospace"
+                    android:background="#F5F5F5"
+                    android:lineSpacingExtra="4dp"
+                    android:text="1\n"/>
 
-        <View
-            android:id="@+id/statusIndicator"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
-            android:layout_toStartOf="@id/languageIndicator"
-            android:layout_centerVertical="true"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/status_indicator_background"/>
-    </RelativeLayout>
-
-    <EditText
-        android:id="@+id/inputText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Enter title"
-        android:padding="12dp"
-        android:textSize="16sp"
-        android:backgroundTint="@color/white"
-        android:textColorHint="@color/black"
-        android:textColor="@color/black"
-        android:inputType="text"
-        android:background="@drawable/edit_text_background"
-        android:layout_marginBottom="8dp"/>
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fillViewport="true">
-
+                <EditText
+                    android:id="@+id/contentInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="Enter content"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:textSize="14sp"
+                    android:backgroundTint="@color/white"
+                    android:textColorHint="@color/black"
+                    android:textColor="@color/black"
+                    android:inputType="textMultiLine|textNoSuggestions"
+                    android:gravity="top"
+                    android:minHeight="300dp"
+                    android:background="@drawable/edit_text_background"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="4dp"
+                    android:scrollbars="none"/>
+            </LinearLayout>
+        </ScrollView>
+        
+        <!-- Save button -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp">
 
-            <TextView
-                android:id="@+id/lineNumbers"
-                android:layout_width="40dp"
-                android:layout_height="match_parent"
-                android:paddingStart="4dp"
-                android:paddingEnd="8dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
-                android:textColor="#808080"
-                android:textSize="12sp"
-                android:gravity="end"
-                android:fontFamily="monospace"
-                android:background="#F5F5F5"
-                android:lineSpacingExtra="4dp"
-                android:text="1\n"/>
-
-            <EditText
-                android:id="@+id/contentInput"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="Enter content"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
-                android:textSize="14sp"
-                android:backgroundTint="@color/white"
-                android:textColorHint="@color/black"
-                android:textColor="@color/black"
-                android:inputType="textMultiLine|textNoSuggestions"
-                android:gravity="top"
-                android:minHeight="200dp"
-                android:background="@drawable/edit_text_background"
-                android:fontFamily="monospace"
-                android:lineSpacingExtra="4dp"
-                android:scrollbars="none"/>
+            <ImageView
+                android:id="@+id/saveIcon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="8dp"
+                android:src="@drawable/plus"
+                android:contentDescription="Save"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:layout_marginEnd="8dp" />
         </LinearLayout>
-    </ScrollView>
+        
+        <!-- Terminal section -->
+        <FrameLayout
+            android:id="@+id/terminalSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone"
+            android:background="#1A000000">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="end"
-        android:paddingTop="16dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-        <ImageView
-            android:id="@+id/saveIcon"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:padding="8dp"
-            android:src="@drawable/plus"
-            android:contentDescription="Save"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:layout_marginEnd="8dp" />
-    </LinearLayout>
+                <TextView
+                    android:id="@+id/terminalPrompt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:typeface="monospace"
+                    android:textColor="#808080" />
 
-    <FrameLayout
-        android:id="@+id/terminalSection"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:visibility="gone"
-        android:background="#1A000000">
+                <EditText
+                    android:id="@+id/terminalInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@null"
+                    android:textSize="14sp"
+                    android:textColor="@color/black"
+                    android:typeface="monospace"
+                    android:inputType="text"
+                    android:imeOptions="actionSend" />
 
+                <TextView
+                    android:id="@+id/terminalOutput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:minHeight="100dp"
+                    android:textSize="14sp"
+                    android:textColor="#808080"
+                    android:typeface="monospace" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Output Section -->
         <LinearLayout
+            android:id="@+id/outputSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:visibility="gone"
+            android:background="?attr/colorSurface"
+            android:padding="8dp"
+            android:layout_marginBottom="16dp">
 
             <TextView
-                android:id="@+id/terminalPrompt"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="14sp"
-                android:typeface="monospace"
-                android:textColor="#808080" />
-
-            <EditText
-                android:id="@+id/terminalInput"
+                android:id="@+id/outputText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@null"
-                android:textSize="14sp"
-                android:textColor="@color/black"
-                android:typeface="monospace"
-                android:inputType="text"
-                android:imeOptions="actionSend" />
-
-            <TextView
-                android:id="@+id/terminalOutput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 android:minHeight="100dp"
                 android:textSize="14sp"
-                android:textColor="#808080"
-                android:typeface="monospace" />
+                android:fontFamily="monospace"
+                android:textColor="?android:attr/textColorPrimary"/>
         </LinearLayout>
-    </FrameLayout>
-
-    <!-- Output Section -->
+    </LinearLayout>
+    
+    <!-- Right side: Chat panel - Takes the ENTIRE right side including the top -->
     <LinearLayout
-        android:id="@+id/outputSection"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:id="@+id/dialogChatPanel"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
         android:orientation="vertical"
         android:visibility="gone"
-        android:layout_marginTop="8dp"
-        android:background="?attr/colorSurface"
-        android:padding="8dp">
-
-        <TextView
-            android:id="@+id/outputText"
+        android:background="#FFFFFF"
+        android:layout_margin="0dp"
+        android:padding="0dp">
+        
+        <!-- Chat Header - Touches the very top of the modal -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="100dp"
-            android:textSize="14sp"
-            android:fontFamily="monospace"
-            android:textColor="?android:attr/textColorPrimary"/>
-
+            android:background="#4285F4"
+            android:orientation="vertical"
+            android:elevation="4dp"
+            android:paddingTop="16dp">
+            
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="16dp">
+                
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chat with AI"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:letterSpacing="0.01"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="#FFFFFF"/>
+                    
+                <ImageView
+                    android:id="@+id/closeChat"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:tint="#FFFFFF"
+                    android:padding="2dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"/>
+            </RelativeLayout>
+            
+            <!-- Optional: AI status indicator -->
+            <TextView
+                android:id="@+id/aiStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ready to assist you with your code"
+                android:textColor="#E6FFFFFF"
+                android:textSize="12sp"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="12dp"
+                android:fontFamily="sans-serif"/>
+        </LinearLayout>
+            
+        <!-- Chat Messages -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/dialogChatRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="16dp"
+            android:clipToPadding="false"
+            android:background="#F8F9FA"/>
+            
+        <!-- Message input area - Touches the bottom edge of the modal -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center_vertical"
+            android:background="#FFFFFF"
+            android:elevation="8dp">
+            
+            <EditText
+                android:id="@+id/dialogChatInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Message AI assistant..."
+                android:padding="12dp"
+                android:background="@drawable/edit_text_background"
+                android:maxLines="3"
+                android:textSize="14sp"
+                android:inputType="textMultiLine"/>
+                
+            <ImageButton
+                android:id="@+id/dialogSendButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:src="@android:drawable/ic_menu_send"
+                android:tint="#4285F4"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Send"/>
+        </LinearLayout>
     </LinearLayout>
-
 </LinearLayout>

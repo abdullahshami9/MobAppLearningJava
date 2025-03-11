@@ -11,6 +11,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -26,6 +27,8 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.PopupMenu;
+import android.widget.ImageButton;
+import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -72,6 +75,14 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private interface OnLanguageSelectedListener {
         void onLanguageSelected(int position);
     }
+
+    private View chatPanel;
+    private ImageButton closeChatButton;
+    private EditText chatInput;
+    private ImageButton sendButton;
+    private RecyclerView chatRecyclerView;
+    private ChatAdapter chatAdapter;
+    private List<ChatMessage> chatMessages;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -226,6 +237,9 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
         // Handle incoming intent
         handleIncomingIntent(getIntent());
+
+        // Initialize chat panel
+        initializeChatPanel();
     }
 
     @Override
@@ -743,6 +757,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                 popup.getMenu().add("Open Terminal");
                 popup.getMenu().add("Run");
                 popup.getMenu().add("Open in Directory");
+                popup.getMenu().add("Chat with AI code base");
                 popup.getMenu().add("Delete");
                 popup.setOnMenuItemClickListener(item -> {
                     switch (item.getTitle().toString()) {
@@ -836,6 +851,205 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                         case "Delete":
                             deleteNote(position);
                             dialog.dismiss();
+                            break;
+                        case "Chat with AI code base":
+                            // Get chat panel that should be inside the dialog
+                            View dialogChatPanel = dialogView.findViewById(R.id.dialogChatPanel);
+                            
+                            if (dialogChatPanel != null) {
+                                // Toggle chat panel visibility
+                                boolean isVisible = dialogChatPanel.getVisibility() == View.VISIBLE;
+                                
+                                if (isVisible) {
+                                    // Hide chat panel and restore dialog size
+                                    dialogChatPanel.setVisibility(View.GONE);
+                                    if (dialog.getWindow() != null) {
+                                        android.view.WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
+                                        params.width = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+                                        // Keep the dialog centered
+                                        params.gravity = android.view.Gravity.CENTER;
+                                        dialog.getWindow().setAttributes(params);
+                                    }
+                                    
+                                    // Restore title bar elements to original position
+                                    RelativeLayout titleBarView = dialogView.findViewById(R.id.titleBar);
+                                    if (titleBarView != null) {
+                                        TextView langIndicator = dialogView.findViewById(R.id.languageIndicator);
+                                        ImageView optionsIcon = dialogView.findViewById(R.id.moreOptionsIcon);
+                                        View statusView = dialogView.findViewById(R.id.statusIndicator);
+                                        
+                                        if (langIndicator != null && optionsIcon != null && statusView != null) {
+                                            // Reset to original layout params
+                                            RelativeLayout.LayoutParams langParams = (RelativeLayout.LayoutParams) langIndicator.getLayoutParams();
+                                            langParams.addRule(RelativeLayout.START_OF, R.id.moreOptionsIcon);
+                                            langParams.addRule(RelativeLayout.END_OF, 0);
+                                            langParams.setMarginStart(0);
+                                            langIndicator.setLayoutParams(langParams);
+                                            
+                                            RelativeLayout.LayoutParams moreParams = (RelativeLayout.LayoutParams) optionsIcon.getLayoutParams();
+                                            moreParams.addRule(RelativeLayout.ALIGN_PARENT_END, RelativeLayout.TRUE);
+                                            moreParams.addRule(RelativeLayout.END_OF, 0);
+                                            moreParams.setMarginStart(0);
+                                            optionsIcon.setLayoutParams(moreParams);
+                                            
+                                            RelativeLayout.LayoutParams statusParams = (RelativeLayout.LayoutParams) statusView.getLayoutParams();
+                                            statusParams.addRule(RelativeLayout.START_OF, R.id.languageIndicator);
+                                            statusParams.addRule(RelativeLayout.END_OF, 0);
+                                            statusParams.setMarginStart(0);
+                                            statusView.setLayoutParams(statusParams);
+                                        }
+                                    }
+                                } else {
+                                    // Show chat panel and make dialog wider
+                                    if (dialog.getWindow() != null) {
+                                        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+                                        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+                                        
+                                        android.view.WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
+                                        params.width = (int)(metrics.widthPixels * 0.95); // 95% of screen width
+                                        // Keep the dialog centered - DO NOT change position
+                                        params.gravity = android.view.Gravity.CENTER;
+                                        // Do not set x, y coordinates to keep dialog centered
+                                        dialog.getWindow().setAttributes(params);
+                                        
+                                        // Move title bar elements to the left when chat is visible
+                                        RelativeLayout titleBarView = dialogView.findViewById(R.id.titleBar);
+                                        if (titleBarView != null) {
+                                            TextView langIndicator = dialogView.findViewById(R.id.languageIndicator);
+                                            ImageView optionsIcon = dialogView.findViewById(R.id.moreOptionsIcon);
+                                            View statusView = dialogView.findViewById(R.id.statusIndicator);
+                                            
+                                            if (langIndicator != null && optionsIcon != null && statusView != null) {
+                                                // Reposition language indicator to be closer to file title
+                                                RelativeLayout.LayoutParams langParams = (RelativeLayout.LayoutParams) langIndicator.getLayoutParams();
+                                                langParams.removeRule(RelativeLayout.START_OF);
+                                                langParams.addRule(RelativeLayout.ALIGN_PARENT_START, 0);
+                                                langParams.addRule(RelativeLayout.END_OF, R.id.fileTitle);
+                                                langParams.setMarginStart(16);
+                                                langIndicator.setLayoutParams(langParams);
+                                                
+                                                // Reposition status indicator next to language indicator
+                                                RelativeLayout.LayoutParams statusParams = (RelativeLayout.LayoutParams) statusView.getLayoutParams();
+                                                statusParams.removeRule(RelativeLayout.START_OF);
+                                                statusParams.addRule(RelativeLayout.ALIGN_PARENT_START, 0);
+                                                statusParams.addRule(RelativeLayout.END_OF, R.id.languageIndicator);
+                                                statusParams.setMarginStart(8);
+                                                statusView.setLayoutParams(statusParams);
+                                                
+                                                // Reposition more options icon next to status indicator
+                                                RelativeLayout.LayoutParams moreParams = (RelativeLayout.LayoutParams) optionsIcon.getLayoutParams();
+                                                moreParams.removeRule(RelativeLayout.ALIGN_PARENT_END);
+                                                moreParams.addRule(RelativeLayout.END_OF, R.id.statusIndicator);
+                                                moreParams.setMarginStart(8);
+                                                optionsIcon.setLayoutParams(moreParams);
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Make chat panel visible after adjusting layout
+                                    dialogChatPanel.setVisibility(View.VISIBLE);
+                                    
+                                    // Initialize chat components inside the dialog
+                                    ImageView closeChat = dialogView.findViewById(R.id.closeChat);
+                                    TextView aiStatus = dialogView.findViewById(R.id.aiStatus);
+                                    RecyclerView dialogChatRecyclerView = dialogView.findViewById(R.id.dialogChatRecyclerView);
+                                    EditText dialogChatInput = dialogView.findViewById(R.id.dialogChatInput);
+                                    ImageButton dialogSendButton = dialogView.findViewById(R.id.dialogSendButton);
+                                    
+                                    // Set up close button click listener
+                                    if (closeChat != null) {
+                                        closeChat.setOnClickListener(closeView -> {
+                                            dialogChatPanel.setVisibility(View.GONE);
+                                            if (dialog.getWindow() != null) {
+                                                android.view.WindowManager.LayoutParams closeParams = dialog.getWindow().getAttributes();
+                                                closeParams.width = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
+                                                // Keep the dialog centered
+                                                closeParams.gravity = android.view.Gravity.CENTER;
+                                                // Do not set x, y coordinates to keep dialog centered
+                                                dialog.getWindow().setAttributes(closeParams);
+                                                
+                                                // Restore title bar elements to original position
+                                                RelativeLayout titleBarView = dialogView.findViewById(R.id.titleBar);
+                                                if (titleBarView != null) {
+                                                    TextView langIndicator = dialogView.findViewById(R.id.languageIndicator);
+                                                    ImageView optionsIcon = dialogView.findViewById(R.id.moreOptionsIcon);
+                                                    View statusView = dialogView.findViewById(R.id.statusIndicator);
+                                                    
+                                                    if (langIndicator != null && optionsIcon != null && statusView != null) {
+                                                        // Reset to original layout params
+                                                        RelativeLayout.LayoutParams langParams = (RelativeLayout.LayoutParams) langIndicator.getLayoutParams();
+                                                        langParams.addRule(RelativeLayout.START_OF, R.id.moreOptionsIcon);
+                                                        langParams.addRule(RelativeLayout.END_OF, 0);
+                                                        langParams.setMarginStart(0);
+                                                        langIndicator.setLayoutParams(langParams);
+                                                        
+                                                        RelativeLayout.LayoutParams moreParams = (RelativeLayout.LayoutParams) optionsIcon.getLayoutParams();
+                                                        moreParams.addRule(RelativeLayout.ALIGN_PARENT_END, RelativeLayout.TRUE);
+                                                        moreParams.addRule(RelativeLayout.END_OF, 0);
+                                                        moreParams.setMarginStart(0);
+                                                        optionsIcon.setLayoutParams(moreParams);
+                                                        
+                                                        RelativeLayout.LayoutParams statusParams = (RelativeLayout.LayoutParams) statusView.getLayoutParams();
+                                                        statusParams.addRule(RelativeLayout.START_OF, R.id.languageIndicator);
+                                                        statusParams.addRule(RelativeLayout.END_OF, 0);
+                                                        statusParams.setMarginStart(0);
+                                                        statusView.setLayoutParams(statusParams);
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    }
+                                    
+                                    if (dialogChatRecyclerView != null && dialogChatInput != null && dialogSendButton != null) {
+                                        // Set up dialog chat components
+                                        List<ChatMessage> dialogChatMessages = new ArrayList<>();
+                                        ChatAdapter dialogChatAdapter = new ChatAdapter(dialogChatMessages);
+                                        dialogChatRecyclerView.setAdapter(dialogChatAdapter);
+                                        dialogChatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+                                        
+                                        // Add welcome message from AI
+                                        if (aiStatus != null) {
+                                            dialogChatMessages.add(new ChatMessage("Hi there! I'm your AI coding assistant. How can I help with your code today?", false));
+                                            dialogChatAdapter.notifyDataSetChanged();
+                                        }
+                                        
+                                        // Set up send button click listener
+                                        dialogSendButton.setOnClickListener(view -> {
+                                            String message = dialogChatInput.getText().toString().trim();
+                                            if (!message.isEmpty()) {
+                                                // Add user message
+                                                dialogChatMessages.add(new ChatMessage(message, true));
+                                                dialogChatAdapter.notifyItemInserted(dialogChatMessages.size() - 1);
+                                                dialogChatRecyclerView.scrollToPosition(dialogChatMessages.size() - 1);
+                                                dialogChatInput.setText("");
+                                                
+                                                // Update AI status
+                                                if (aiStatus != null) {
+                                                    aiStatus.setText("Analyzing your code...");
+                                                }
+                                                
+                                                // TODO: Add AI response logic
+                                                // Simulate AI response for now
+                                                new Handler().postDelayed(() -> {
+                                                    dialogChatMessages.add(new ChatMessage("I've analyzed your code. It looks like you're using JavaScript to log a number. Is there anything specific you'd like help with?", false));
+                                                    dialogChatAdapter.notifyItemInserted(dialogChatMessages.size() - 1);
+                                                    dialogChatRecyclerView.scrollToPosition(dialogChatMessages.size() - 1);
+                                                    
+                                                    // Update AI status back to ready
+                                                    if (aiStatus != null) {
+                                                        aiStatus.setText("Ready to assist you with your code");
+                                                    }
+                                                }, 2000);
+                                            }
+                                        });
+                                        
+                                        // Set focus on input field
+                                        dialogChatInput.requestFocus();
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(this, "Chat functionality not available in this dialog", Toast.LENGTH_SHORT).show();
+                            }
                             break;
                     }
                     return true;
@@ -1255,5 +1469,167 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private void clearErrorHighlighting(EditText contentInput) {
         String content = contentInput.getText().toString();
         contentInput.setText(content);
+    }
+
+    private void initializeChatPanel() {
+        chatPanel = findViewById(R.id.chatPanel);
+        closeChatButton = findViewById(R.id.closeChatButton);
+        chatInput = findViewById(R.id.chatInput);
+        sendButton = findViewById(R.id.sendButton);
+        chatRecyclerView = findViewById(R.id.chatRecyclerView);
+
+        // Initialize chat messages
+        chatMessages = new ArrayList<>();
+        chatAdapter = new ChatAdapter(chatMessages);
+        chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        chatRecyclerView.setAdapter(chatAdapter);
+
+        // Hide chat panel initially
+        chatPanel.setVisibility(View.GONE);
+
+        // Set up close button
+        closeChatButton.setOnClickListener(v -> hideChatPanel());
+
+        // Set up send button
+        sendButton.setOnClickListener(v -> sendChatMessage());
+    }
+
+    private void showChatPanel() {
+        // Ensure chat panel is visible and ready for display
+        chatPanel.setVisibility(View.VISIBLE);
+        chatPanel.setAlpha(0f);
+        
+        // Get screen width
+        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        
+        // Set proper width and position
+        ViewGroup.LayoutParams params = chatPanel.getLayoutParams();
+        params.width = (metrics.widthPixels / 2) - 20;
+        chatPanel.setLayoutParams(params);
+        
+        // Explicitly position at right half of screen
+        chatPanel.setX(metrics.widthPixels / 2 + 10);
+        
+        // Make sure chat panel is visible above everything
+        ViewGroup rootView = (ViewGroup) getWindow().getDecorView().getRootView();
+        if (chatPanel.getParent() != null) {
+            ((ViewGroup) chatPanel.getParent()).removeView(chatPanel);
+        }
+        rootView.addView(chatPanel);
+        
+        // Set very high elevation and bring to front
+        chatPanel.setElevation(9999f);
+        chatPanel.bringToFront();
+        
+        // Animate the chat panel in
+        chatPanel.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .start();
+        
+        // Force redraw
+        chatPanel.invalidate();
+        
+        // Request focus on chat input
+        chatInput.requestFocus();
+    }
+
+    private void hideChatPanel() {
+        chatPanel.animate()
+            .alpha(0f)
+            .setDuration(300)
+            .withEndAction(() -> {
+                chatPanel.setVisibility(View.GONE);
+                chatPanel.setElevation(0f);
+            })
+            .start();
+    }
+
+    private void sendChatMessage() {
+        String message = chatInput.getText().toString().trim();
+        if (!message.isEmpty()) {
+            // Add user message
+            chatMessages.add(new ChatMessage(message, true));
+            chatAdapter.notifyItemInserted(chatMessages.size() - 1);
+            chatRecyclerView.scrollToPosition(chatMessages.size() - 1);
+
+            // Clear input
+            chatInput.setText("");
+
+            // TODO: Process message and get AI response
+            // For now, just echo the message
+            String aiResponse = "You said: " + message;
+            chatMessages.add(new ChatMessage(aiResponse, false));
+            chatAdapter.notifyItemInserted(chatMessages.size() - 1);
+            chatRecyclerView.scrollToPosition(chatMessages.size() - 1);
+        }
+    }
+
+    // Chat Message class
+    private static class ChatMessage {
+        String message;
+        boolean isUser;
+
+        ChatMessage(String message, boolean isUser) {
+            this.message = message;
+            this.isUser = isUser;
+        }
+    }
+
+    // Chat Adapter class
+    private static class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder> {
+        private List<ChatMessage> messages;
+
+        ChatAdapter(List<ChatMessage> messages) {
+            this.messages = messages;
+        }
+
+        @NonNull
+        @Override
+        public ChatViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.chat_message_item, parent, false);
+            return new ChatViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ChatViewHolder holder, int position) {
+            ChatMessage message = messages.get(position);
+            holder.messageText.setText(message.message);
+            
+            // Align messages based on sender
+            if (message.isUser) {
+                holder.messageText.setBackgroundResource(R.drawable.user_message_background);
+                holder.messageText.setTextColor(Color.WHITE);
+                holder.itemView.setLayoutParams(new RecyclerView.LayoutParams(
+                    RecyclerView.LayoutParams.MATCH_PARENT,
+                    RecyclerView.LayoutParams.WRAP_CONTENT
+                ));
+                holder.messageText.setGravity(android.view.Gravity.END);
+            } else {
+                holder.messageText.setBackgroundResource(R.drawable.ai_message_background);
+                holder.messageText.setTextColor(Color.BLACK);
+                holder.itemView.setLayoutParams(new RecyclerView.LayoutParams(
+                    RecyclerView.LayoutParams.MATCH_PARENT,
+                    RecyclerView.LayoutParams.WRAP_CONTENT
+                ));
+                holder.messageText.setGravity(android.view.Gravity.START);
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            return messages.size();
+        }
+
+        static class ChatViewHolder extends RecyclerView.ViewHolder {
+            TextView messageText;
+
+            ChatViewHolder(@NonNull View itemView) {
+                super(itemView);
+                messageText = itemView.findViewById(R.id.messageText);
+            }
+        }
     }
 }

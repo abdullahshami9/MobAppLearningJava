@@ -9,9 +9,13 @@ import android.webkit.WebViewClient;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -49,6 +53,7 @@ public class CodeExecutor {
 
     public interface CodeExecutionCallback {
         void onExecutionComplete(ExecutionResult result);
+        default void onInstallationProgress(String message) {} // Optional callback for installation progress
     }
 
     public CodeExecutor(Context context) {
@@ -283,11 +288,45 @@ public class CodeExecutor {
             webView.getSettings().setJavaScriptEnabled(true);
             webView.getSettings().setDomStorageEnabled(true);
             
+            String html = "<html><body>" +
+                "<script src='https://cdn.jsdelivr.net/npm/php-wasm@0.0.9/php-wasm.js'></script>" +
+                "<script>" +
+                "let isLoaded = false;" +
+                "window.onerror = function(msg, url, line) { " +
+                "    window.Android.onError('JavaScript error: ' + msg + ' at line ' + line);" +
+                "    return true;" +
+                "};" +
+                "function runPHP() {" +
+                "    if (!isLoaded) {" +
+                "        setTimeout(runPHP, 100);" + // Wait for PHP.js to load
+                "        return;" +
+                "    }" +
+                "    try {" +
+                "        let code = " + JSONObject.quote(code) + ";" +
+                "        let output = PHP.run(code);" +
+                "        window.Android.onOutput(output);" +
+                "        window.Android.onComplete();" +
+                "    } catch(e) {" +
+                "        window.Android.onError(e.toString());" +
+                "    }" +
+                "}" +
+                "window.onload = function() {" +
+                "    if (typeof PHP !== 'undefined') {" +
+                "        isLoaded = true;" +
+                "        runPHP();" +
+                "    } else {" +
+                "        window.Android.onError('Failed to load PHP interpreter');" +
+                "    }" +
+                "};" +
+                "</script></body></html>";
+
             class AndroidInterface {
                 @JavascriptInterface
                 public void onOutput(String output) {
                     mainHandler.post(() -> {
-                        result.output += output;
+                        if (output != null && !output.trim().isEmpty()) {
+                            result.output += output;
+                        }
                     });
                 }
 
@@ -309,42 +348,39 @@ public class CodeExecutor {
                     mainHandler.post(() -> {
                         result.error = error;
                         result.status = ExecutionStatus.ERROR;
-                        result.errorLines.add(1);
+                        // Parse line number from PHP error message
+                        try {
+                            String[] parts = error.split("line ");
+                            if (parts.length > 1) {
+                                int lineNum = Integer.parseInt(parts[1].split("\\D")[0]);
+                                result.errorLines.add(lineNum);
+                            } else {
+                                result.errorLines.add(1);
+                            }
+                        } catch (Exception e) {
+                            result.errorLines.add(1);
+                        }
                         callback.onExecutionComplete(result);
-                    });
-                }
-
-                @JavascriptInterface
-                public void debug(String message) {
-                    mainHandler.post(() -> {
-                        result.output += "Debug: " + message + "\n";
                     });
                 }
             }
 
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                    result.error = "Failed to load PHP interpreter: " + description;
+                    result.status = ExecutionStatus.ERROR;
+                    callback.onExecutionComplete(result);
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    // Page loaded, PHP.js should start loading
+                }
+            });
+
             webView.addJavascriptInterface(new AndroidInterface(), "Android");
-            
-            // Simple PHP to JavaScript converter
-            String phpCode = code.replaceAll("\\<\\?php|\\?\\>", "")  // Remove PHP tags
-                               .replaceAll("echo\\s+", "phpPrint(")    // Convert echo to print
-                               .replaceAll(";", ");")                  // Ensure semicolons
-                               .trim();
-
-            String html = "<html><body>" +
-                "<script>" +
-                "function phpPrint(str) { Android.onOutput(str + '\\n'); }" +
-                "try {" +
-                "    Android.debug('Starting PHP execution');" +
-                "    " + phpCode + "\n" +
-                "    Android.debug('PHP execution completed successfully');" +
-                "    setTimeout(function() { Android.onComplete(); }, 100);" +
-                "} catch(e) {" +
-                "    Android.debug('PHP execution error: ' + e.message);" +
-                "    Android.onError(e.message);" +
-                "}" +
-                "</script></body></html>";
-
-            webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "UTF-8", null);
+            webView.loadDataWithBaseURL("https://example.com", html, "text/html", "UTF-8", null);
         });
     }
 
@@ -410,48 +446,6 @@ public class CodeExecutor {
 
         tempFile.delete();
         new File(context.getCacheDir(), className + ".class").delete();
-    }
-
-    private void executePHP(String code, ExecutionResult result) throws Exception {
-        File tempFile = File.createTempFile("temp_php", ".php", context.getCacheDir());
-        try (FileWriter writer = new FileWriter(tempFile)) {
-            writer.write(code);
-        }
-
-        try {
-            ProcessBuilder processBuilder = new ProcessBuilder("php", tempFile.getAbsolutePath());
-            Process process = processBuilder.start();
-            
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                result.output += line + "\n";
-            }
-
-            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            while ((line = errorReader.readLine()) != null) {
-                result.error += line + "\n";
-                extractErrorLines(line, result.errorLines);
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                if (result.error.isEmpty()) {
-                    result.error = "PHP process exited with code " + exitCode;
-                }
-                result.status = ExecutionStatus.ERROR;
-            }
-        } catch (IOException e) {
-            if (e.getMessage() != null && e.getMessage().contains("error=2, No such file or directory")) {
-                result.error = "PHP is not installed on this device. Please install PHP to run PHP code.";
-                result.errorLines.add(1); // Highlight the first line to indicate configuration error
-            } else {
-                result.error = "Error executing PHP code: " + e.getMessage();
-            }
-            result.status = ExecutionStatus.ERROR;
-        } finally {
-            tempFile.delete();
-        }
     }
 
     private void extractErrorLines(String errorMessage, List<Integer> errorLines) {
