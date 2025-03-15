@@ -17,7 +17,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -29,6 +31,9 @@ public class CodeExecutor {
     private Context context;
     private ExecutorService executorService;
     private Handler mainHandler;
+    private Map<String, String> environmentVariables;
+    private String currentWorkingDirectory;
+    private boolean isLocalExecutionEnabled = false;
     
     public static class ExecutionResult {
         public String output;
@@ -54,6 +59,10 @@ public class CodeExecutor {
     public interface CodeExecutionCallback {
         void onExecutionComplete(ExecutionResult result);
         default void onInstallationProgress(String message) {} // Optional callback for installation progress
+    }
+
+    public interface TerminalExecutionCallback {
+        void onExecutionComplete(ExecutionResult result);
     }
 
     public CodeExecutor(Context context) {
@@ -472,5 +481,270 @@ public class CodeExecutor {
                 }
             }
         }
+    }
+
+    /**
+     * Execute terminal command for different operating systems with mobile support
+     * 
+     * @param command The command to execute
+     * @param osType The target OS (windows, linux, mac)
+     * @param callback Callback for result
+     */
+    public void executeTerminalCommand(String command, String osType, TerminalExecutionCallback callback) {
+        executorService.execute(() -> {
+            ExecutionResult result = new ExecutionResult();
+            result.status = ExecutionStatus.EXECUTING;
+            
+            try {
+                if (isLocalExecutionEnabled && canExecuteOnDevice()) {
+                    // Try to execute locally if enabled and possible
+                    executeCommandLocally(command, result);
+                } else {
+                    // Otherwise simulate command execution
+                    simulateCommandExecution(command, osType, result);
+                }
+                
+                result.status = ExecutionStatus.SUCCESS;
+            } catch (Exception e) {
+                result.error = e.getMessage();
+                result.status = ExecutionStatus.ERROR;
+            }
+            
+            mainHandler.post(() -> callback.onExecutionComplete(result));
+        });
+    }
+    
+    /**
+     * Check if we can execute commands on the actual device
+     */
+    private boolean canExecuteOnDevice() {
+        try {
+            // Try a simple command to check if we have terminal access
+            Process process = Runtime.getRuntime().exec("echo test");
+            int exitCode = process.waitFor();
+            return exitCode == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Execute command locally on the device
+     */
+    private void executeCommandLocally(String command, ExecutionResult result) throws Exception {
+        // Prepare environment variables
+        String[] envp = null;
+        if (environmentVariables != null && !environmentVariables.isEmpty()) {
+            envp = new String[environmentVariables.size()];
+            int i = 0;
+            for (Map.Entry<String, String> entry : environmentVariables.entrySet()) {
+                envp[i++] = entry.getKey() + "=" + entry.getValue();
+            }
+        }
+        
+        // Prepare working directory
+        File workingDir = null;
+        if (currentWorkingDirectory != null && !currentWorkingDirectory.isEmpty()) {
+            workingDir = new File(currentWorkingDirectory);
+            if (!workingDir.exists() || !workingDir.isDirectory()) {
+                workingDir = null;
+            }
+        }
+        
+        // Execute command
+        Process process = Runtime.getRuntime().exec(command, envp, workingDir);
+        
+        // Read output
+        try (BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+            
+            StringBuilder outputBuilder = new StringBuilder();
+            StringBuilder errorBuilder = new StringBuilder();
+            
+            String s;
+            while ((s = stdInput.readLine()) != null) {
+                outputBuilder.append(s).append("\n");
+            }
+            
+            while ((s = stdError.readLine()) != null) {
+                errorBuilder.append(s).append("\n");
+            }
+            
+            // Wait for process to complete
+            int exitValue = process.waitFor();
+            
+            result.output = outputBuilder.toString();
+            result.error = errorBuilder.toString();
+            
+            if (exitValue != 0 && result.error.isEmpty()) {
+                result.error = "Process exited with code " + exitValue;
+            }
+        }
+    }
+    
+    /**
+     * Simulate command execution when local execution isn't possible
+     */
+    private void simulateCommandExecution(String command, String osType, ExecutionResult result) {
+        String simulated;
+        
+        switch (osType.toLowerCase()) {
+            case "windows":
+                simulated = simulateWindowsCommand(command);
+                break;
+            case "mac":
+                simulated = simulateUnixCommand(command, true);
+                break;
+            case "linux":
+            default:
+                simulated = simulateUnixCommand(command, false);
+                break;
+        }
+        
+        result.output = simulated;
+    }
+    
+    /**
+     * Simulate Windows command execution
+     */
+    private String simulateWindowsCommand(String command) {
+        StringBuilder output = new StringBuilder();
+        
+        // Extract command name
+        String[] parts = command.trim().split("\\s+", 2);
+        String cmd = parts[0].toLowerCase();
+        String args = parts.length > 1 ? parts[1] : "";
+        
+        switch (cmd) {
+            case "dir":
+                output.append(" Volume in drive C is Windows\n");
+                output.append(" Volume Serial Number is XXXX-XXXX\n\n");
+                output.append(" Directory of C:\\Users\\User\\Documents\n\n");
+                output.append("12/01/2023  08:30 AM    <DIR>          .\n");
+                output.append("12/01/2023  08:30 AM    <DIR>          ..\n");
+                output.append("11/28/2023  10:23 AM             8,192 document.txt\n");
+                output.append("11/27/2023  09:45 AM    <DIR>          project\n");
+                output.append("11/25/2023  11:15 AM             2,048 readme.md\n");
+                output.append("               3 File(s)         10,240 bytes\n");
+                output.append("               3 Dir(s)  54,184,230,912 bytes free\n");
+                break;
+            case "cd":
+                output.append("Changed directory to ").append(args.isEmpty() ? "C:\\Users\\User" : args).append("\n");
+                break;
+            case "echo":
+                output.append(args).append("\n");
+                break;
+            case "type":
+                if (args.isEmpty()) {
+                    output.append("The syntax of the command is incorrect.\n");
+                } else {
+                    output.append("Content of ").append(args).append(":\n");
+                    output.append("This is a simulated file content.\n");
+                }
+                break;
+            case "systeminfo":
+                output.append("HOST NAME:                 MOBILE-DEVICE\n");
+                output.append("OS NAME:                   Microsoft Windows 10 Pro\n");
+                output.append("OS VERSION:                10.0.19044\n");
+                output.append("SYSTEM TYPE:               x64-based PC\n");
+                output.append("PROCESSOR:                 Intel(R) Core(TM) i7 CPU @ 2.60GHz\n");
+                output.append("BIOS VERSION:              MOBILE.123.456.789\n");
+                output.append("TOTAL PHYSICAL MEMORY:     8,192 MB\n");
+                break;
+            default:
+                if (cmd.equals("cls")) {
+                    // Just return empty string for cls
+                    return "";
+                }
+                output.append("'").append(cmd).append("' is not recognized as an internal or external command,\n");
+                output.append("operable program or batch file.\n");
+                break;
+        }
+        
+        return output.toString();
+    }
+    
+    /**
+     * Simulate Unix command execution (Linux/Mac)
+     */
+    private String simulateUnixCommand(String command, boolean isMac) {
+        StringBuilder output = new StringBuilder();
+        
+        // Extract command name
+        String[] parts = command.trim().split("\\s+", 2);
+        String cmd = parts[0];
+        String args = parts.length > 1 ? parts[1] : "";
+        
+        switch (cmd) {
+            case "ls":
+                if (args.contains("-l")) {
+                    output.append("total 20\n");
+                    output.append("drwxr-xr-x  2 user group 4096 Dec  1 08:30 .\n");
+                    output.append("drwxr-xr-x 10 user group 4096 Dec  1 08:30 ..\n");
+                    output.append("-rw-r--r--  1 user group 8192 Nov 28 10:23 document.txt\n");
+                    output.append("drwxr-xr-x  4 user group 4096 Nov 27 09:45 project\n");
+                    output.append("-rw-r--r--  1 user group 2048 Nov 25 11:15 readme.md\n");
+                } else {
+                    output.append("document.txt  project  readme.md\n");
+                }
+                break;
+            case "cd":
+                output.append("Changed directory to ").append(args.isEmpty() ? "/home/user" : args).append("\n");
+                break;
+            case "echo":
+                output.append(args).append("\n");
+                break;
+            case "cat":
+                if (args.isEmpty()) {
+                    output.append("cat: missing operand\n");
+                } else {
+                    output.append("Content of ").append(args).append(":\n");
+                    output.append("This is a simulated file content.\n");
+                }
+                break;
+            case "pwd":
+                output.append("/home/user/documents\n");
+                break;
+            case "uname":
+                if (args.contains("-a")) {
+                    if (isMac) {
+                        output.append("Darwin MacBook-Pro.local 20.6.0 Darwin Kernel Version 20.6.0: Mon Aug 30 06:12:21 PDT 2023; root:xnu-7195.141.6~3/RELEASE_X86_64 x86_64\n");
+                    } else {
+                        output.append("Linux android-device 5.10.81-android12-9-00001-gd88744ea9cc3-ab8827094 #1 SMP PREEMPT Thu Nov 18 15:51:33 UTC 2023 aarch64 Android\n");
+                    }
+                } else {
+                    output.append(isMac ? "Darwin\n" : "Linux\n");
+                }
+                break;
+            case "clear":
+                // Just return empty string for clear
+                return "";
+            default:
+                output.append("-bash: ").append(cmd).append(": command not found\n");
+                break;
+        }
+        
+        return output.toString();
+    }
+    
+    /**
+     * Sets whether to try local command execution
+     */
+    public void setLocalExecutionEnabled(boolean enabled) {
+        this.isLocalExecutionEnabled = enabled;
+    }
+    
+    /**
+     * Set current working directory for commands
+     */
+    public void setCurrentWorkingDirectory(String directory) {
+        this.currentWorkingDirectory = directory;
+    }
+    
+    /**
+     * Set environment variables for commands
+     */
+    public void setEnvironmentVariables(Map<String, String> variables) {
+        this.environmentVariables = variables;
     }
 } 

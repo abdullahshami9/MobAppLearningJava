@@ -19,6 +19,7 @@ import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
@@ -69,6 +70,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.HashMap;
 
 public class PersonalProfileHome extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -88,14 +92,6 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private interface OnLanguageSelectedListener {
         void onLanguageSelected(int position);
     }
-
-    private View chatPanel;
-    private ImageButton closeChatButton;
-    private EditText chatInput;
-    private ImageButton sendButton;
-    private RecyclerView chatRecyclerView;
-    private ChatAdapter chatAdapter;
-    private List<ChatMessage> chatMessages;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -251,9 +247,6 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
         // Handle incoming intent
         handleIncomingIntent(getIntent());
-
-        // Initialize chat panel
-        initializeChatPanel();
     }
 
     @Override
@@ -747,6 +740,9 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             }
         }
 
+        // Get the position of the note in the dataList for delete functionality
+        final int notePosition = position;
+        
         // Set the content and language indicator
         inputText.setText(titleHolder[0]);
         contentInput.setText(note.getContent());
@@ -768,14 +764,30 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         if (moreOptionsIcon != null) {
             moreOptionsIcon.setOnClickListener(v -> {
                 PopupMenu popup = new PopupMenu(this, moreOptionsIcon);
-                popup.getMenu().add("Open Terminal");
-                popup.getMenu().add("Run");
-                popup.getMenu().add("Open in Directory");
-                popup.getMenu().add("Chat with AI code base");
-                popup.getMenu().add("Delete");
+                
+                // Add menu items with icons
+                Menu menu = popup.getMenu();
+                menu.add(Menu.NONE, 1, Menu.NONE, "Terminal").setIcon(R.drawable.ic_terminal);
+                menu.add(Menu.NONE, 2, Menu.NONE, "Run").setIcon(R.drawable.ic_run);
+                menu.add(Menu.NONE, 3, Menu.NONE, "Open Directory").setIcon(R.drawable.ic_directory);
+                menu.add(Menu.NONE, 4, Menu.NONE, "Chat with AI").setIcon(R.drawable.ic_chat_ai);
+                menu.add(Menu.NONE, 5, Menu.NONE, "Delete").setIcon(R.drawable.ic_delete_bin);
+                
+                // Force showing icons in popup menu (normally not shown by default)
+                try {
+                    Field field = popup.getClass().getDeclaredField("mPopup");
+                    field.setAccessible(true);
+                    Object menuPopupHelper = field.get(popup);
+                    Class<?> classPopupHelper = Class.forName(menuPopupHelper.getClass().getName());
+                    Method setForceIcons = classPopupHelper.getMethod("setForceShowIcon", boolean.class);
+                    setForceIcons.invoke(menuPopupHelper, true);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                
                 popup.setOnMenuItemClickListener(item -> {
-                    switch (item.getTitle().toString()) {
-                        case "Open Terminal":
+                    switch (item.getItemId()) {
+                        case 1: // Terminal
                             isTerminalVisible[0] = !isTerminalVisible[0];
                             if (terminalSection != null) {
                                 terminalSection.setVisibility(isTerminalVisible[0] ? View.VISIBLE : View.GONE);
@@ -788,312 +800,128 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                                 }
                             }
                             break;
-                        case "Run":
-                            // Initialize output section
-                            View outputSection = dialogView.findViewById(R.id.outputSection);
-                            TextView outputText = dialogView.findViewById(R.id.outputText);
-                            
-                            // Show output section with animation
-                            outputSection.setVisibility(View.VISIBLE);
-                            outputSection.setAlpha(0f);
-                            outputSection.animate()
-                                .alpha(1f)
-                                .setDuration(200)
-                                .start();
-                            
-                            outputText.setText("Running code...");
-                            
-                            // Execute the code
-                            String code = contentInput.getText().toString();
-                            String extension = languages[selectedLanguage[0]];
-                            
-                            // Initialize CodeExecutor if not already done
-                            CodeExecutor codeExecutor = new CodeExecutor(this);
-                            
-                            codeExecutor.executeCode(code, extension, result -> {
-                                runOnUiThread(() -> {
-                                    // Update status indicator based on execution status
-                                    int statusColor;
-                                    
-                                    // Force ERROR status if there's an error message
-                                    if (!result.error.isEmpty()) {
-                                        result.status = ExecutionStatus.ERROR;
-                                    }
-                                    
-                                    // Set color based on status
-                                    switch (result.status) {
-                                        case NOT_EXECUTED:
-                                            statusColor = Color.BLUE;
-                                            break;
-                                        case EXECUTING:
-                                            statusColor = Color.BLUE;
-                                            break;
-                                        case SUCCESS:
-                                            statusColor = Color.parseColor("#4CAF50"); // Green
-                                            break;
-                                        case ERROR:
-                                            statusColor = Color.RED;
-                                            break;
-                                        default:
-                                            statusColor = Color.BLUE;
-                                    }
-                                    
-                                    // Apply the color to the status indicator
-                                    statusIndicator.setBackgroundTintList(ColorStateList.valueOf(statusColor));
-
-                                    // Update output text
-                                    if (!result.error.isEmpty()) {
-                                        outputText.setText("Error:\n" + result.error);
-                                        outputText.setTextColor(Color.RED);
-                                        
-                                        // Highlight error lines in the editor
-                                        highlightErrorLines(contentInput, result.errorLines);
-                                    } else {
-                                        outputText.setText("Output:\n" + result.output);
-                                        outputText.setTextColor(ThemeHelper.isDarkTheme(this) ? 
-                                            Color.WHITE : Color.BLACK);
-                                        
-                                        // Clear any error highlighting
-                                        clearErrorHighlighting(contentInput);
-                                    }
-                                });
-                            });
-                            break;
-                        case "Open in Directory":
-                            // Handle directory opening
-                            break;
-                        case "Delete":
-                            deleteNote(position);
-                            dialog.dismiss();
-                            break;
-                        case "Chat with AI code base":
-                            // Get chat panel that should be inside the dialog
-                            View dialogChatPanel = dialogView.findViewById(R.id.dialogChatPanel);
-                            
-                            if (dialogChatPanel != null) {
-                                // Toggle chat panel visibility
-                                boolean isVisible = dialogChatPanel.getVisibility() == View.VISIBLE;
+                        case 2: // Run
+                            // Show output section if not visible
+                            LinearLayout outputSection = dialogView.findViewById(R.id.outputSection);
+                            if (outputSection != null) {
+                                outputSection.setVisibility(View.VISIBLE);
                                 
-                                if (isVisible) {
-                                    // Hide chat panel and restore dialog size
-                                    dialogChatPanel.setVisibility(View.GONE);
-                                    if (dialog.getWindow() != null) {
-                                        android.view.WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
-                                        params.width = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
-                                        // Keep the dialog centered
-                                        params.gravity = android.view.Gravity.CENTER;
-                                        dialog.getWindow().setAttributes(params);
-                                    }
+                                // Get the content and extension
+                                String codeToRun = contentInput.getText().toString();
+                                String extension = languages[selectedLanguage[0]];
+                                
+                                // Get the output TextView
+                                TextView outputText = dialogView.findViewById(R.id.outputText);
+                                if (outputText != null) {
+                                    outputText.setText("Running code...");
                                     
-                                    // Restore title bar elements to original position
-                                    RelativeLayout titleBarView = dialogView.findViewById(R.id.titleBar);
-                                    if (titleBarView != null) {
-                                        TextView langIndicator = dialogView.findViewById(R.id.languageIndicator);
-                                        ImageView optionsIcon = dialogView.findViewById(R.id.moreOptionsIcon);
-                                        View statusView = dialogView.findViewById(R.id.statusIndicator);
-                                        
-                                        if (langIndicator != null && optionsIcon != null && statusView != null) {
-                                            // Reset to original layout params
-                                            RelativeLayout.LayoutParams langParams = (RelativeLayout.LayoutParams) langIndicator.getLayoutParams();
-                                            langParams.addRule(RelativeLayout.START_OF, R.id.moreOptionsIcon);
-                                            langParams.addRule(RelativeLayout.END_OF, 0);
-                                            langParams.setMarginStart(0);
-                                            langIndicator.setLayoutParams(langParams);
-                                            
-                                            RelativeLayout.LayoutParams moreParams = (RelativeLayout.LayoutParams) optionsIcon.getLayoutParams();
-                                            moreParams.addRule(RelativeLayout.ALIGN_PARENT_END, RelativeLayout.TRUE);
-                                            moreParams.addRule(RelativeLayout.END_OF, 0);
-                                            moreParams.setMarginStart(0);
-                                            optionsIcon.setLayoutParams(moreParams);
-                                            
-                                            RelativeLayout.LayoutParams statusParams = (RelativeLayout.LayoutParams) statusView.getLayoutParams();
-                                            statusParams.addRule(RelativeLayout.START_OF, R.id.languageIndicator);
-                                            statusParams.addRule(RelativeLayout.END_OF, 0);
-                                            statusParams.setMarginStart(0);
-                                            statusView.setLayoutParams(statusParams);
+                                    // Create CodeExecutor and run the code
+                                    CodeExecutor executor = new CodeExecutor(PersonalProfileHome.this);
+                                    executor.executeCode(codeToRun, extension, result -> {
+                                        if (result.status == CodeExecutor.ExecutionStatus.SUCCESS) {
+                                            outputText.setText(result.output);
+                                        } else if (result.status == CodeExecutor.ExecutionStatus.ERROR) {
+                                            outputText.setText("Error: " + result.error);
                                         }
-                                    }
-                                } else {
-                                    // Show chat panel and make dialog wider
-                                    if (dialog.getWindow() != null) {
-                                        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
-                                        getWindowManager().getDefaultDisplay().getMetrics(metrics);
-                                        
-                                        android.view.WindowManager.LayoutParams params = dialog.getWindow().getAttributes();
-                                        params.width = (int)(metrics.widthPixels * 0.95); // 95% of screen width
-                                        // Keep the dialog centered - DO NOT change position
-                                        params.gravity = android.view.Gravity.CENTER;
-                                        // Do not set x, y coordinates to keep dialog centered
-                                        dialog.getWindow().setAttributes(params);
-                                        
-                                        // Move title bar elements to the left when chat is visible
-                                        RelativeLayout titleBarView = dialogView.findViewById(R.id.titleBar);
-                                        if (titleBarView != null) {
-                                            TextView langIndicator = dialogView.findViewById(R.id.languageIndicator);
-                                            ImageView optionsIcon = dialogView.findViewById(R.id.moreOptionsIcon);
-                                            View statusView = dialogView.findViewById(R.id.statusIndicator);
-                                            
-                                            if (langIndicator != null && optionsIcon != null && statusView != null) {
-                                                // Reposition language indicator to be closer to file title
-                                                RelativeLayout.LayoutParams langParams = (RelativeLayout.LayoutParams) langIndicator.getLayoutParams();
-                                                langParams.removeRule(RelativeLayout.START_OF);
-                                                langParams.addRule(RelativeLayout.ALIGN_PARENT_START, 0);
-                                                langParams.addRule(RelativeLayout.END_OF, R.id.fileTitle);
-                                                langParams.setMarginStart(16);
-                                                langIndicator.setLayoutParams(langParams);
-                                                
-                                                // Reposition status indicator next to language indicator
-                                                RelativeLayout.LayoutParams statusParams = (RelativeLayout.LayoutParams) statusView.getLayoutParams();
-                                                statusParams.removeRule(RelativeLayout.START_OF);
-                                                statusParams.addRule(RelativeLayout.ALIGN_PARENT_START, 0);
-                                                statusParams.addRule(RelativeLayout.END_OF, R.id.languageIndicator);
-                                                statusParams.setMarginStart(8);
-                                                statusView.setLayoutParams(statusParams);
-                                                
-                                                // Reposition more options icon next to status indicator
-                                                RelativeLayout.LayoutParams moreParams = (RelativeLayout.LayoutParams) optionsIcon.getLayoutParams();
-                                                moreParams.removeRule(RelativeLayout.ALIGN_PARENT_END);
-                                                moreParams.addRule(RelativeLayout.END_OF, R.id.statusIndicator);
-                                                moreParams.setMarginStart(8);
-                                                optionsIcon.setLayoutParams(moreParams);
-                                            }
-                                        }
-                                    }
-                                    
-                                    // Make chat panel visible after adjusting layout
-                                    dialogChatPanel.setVisibility(View.VISIBLE);
-                                    
-                                    // Initialize chat components inside the dialog
-                                    ImageView closeChat = dialogView.findViewById(R.id.closeChat);
-                                    RecyclerView dialogChatRecyclerView = dialogView.findViewById(R.id.dialogChatRecyclerView);
-                                    EditText dialogChatInput = dialogView.findViewById(R.id.dialogChatInput);
-                                    ImageButton dialogSendButton = dialogView.findViewById(R.id.dialogSendButton);
-                                    LinearLayout tagsContainer = dialogView.findViewById(R.id.tagsContainer);
-                                    LinearLayout addTagButton = dialogView.findViewById(R.id.addTagButton);
-                                    
-                                    // Set up add tag button
-                                    if (addTagButton != null) {
-                                        addTagButton.setOnClickListener(view -> {
-                                            showAddTagDialog();
-                                        });
-                                    }
-                                    
-                                    // Make tags clickable and long-pressable for deletion
-                                    if (tagsContainer != null) {
-                                        for (int i = 0; i < tagsContainer.getChildCount(); i++) {
-                                            View child = tagsContainer.getChildAt(i);
-                                            if (child instanceof TextView) {
-                                                final TextView tagView = (TextView) child;
-                                                
-                                                // Skip the add button
-                                                if (child.getId() == R.id.addTagButton) {
-                                                    continue;
-                                                }
-                                                
-                                                // Make tag clickable
-                                                tagView.setClickable(true);
-                                                tagView.setFocusable(true);
-                                                tagView.setBackground(getResources().getDrawable(R.drawable.tag_background, getTheme()));
-                                                
-                                                // Click to use as prompt
-                                                tagView.setOnClickListener(view -> {
-                                                    String prompt = "Help me with " + tagView.getText().toString();
-                                                    dialogChatInput.setText(prompt);
-                                                    dialogChatInput.setSelection(prompt.length());
-                                                    dialogChatInput.requestFocus();
-                                                });
-                                                
-                                                // Long press to delete
-                                                tagView.setOnLongClickListener(longClickView -> {
-                                                    showDeleteTagDialog(tagView.getText().toString(), tagView);
-                                                    return true;
-                                                });
-                                            }
-                                        }
-                                    }
-                                    
-                                    // Set up close button click listener
-                                    if (closeChat != null) {
-                                        closeChat.setOnClickListener(closeView -> {
-                                            dialogChatPanel.setVisibility(View.GONE);
-                                            if (dialog.getWindow() != null) {
-                                                android.view.WindowManager.LayoutParams closeParams = dialog.getWindow().getAttributes();
-                                                closeParams.width = android.view.WindowManager.LayoutParams.WRAP_CONTENT;
-                                                // Keep the dialog centered
-                                                closeParams.gravity = android.view.Gravity.CENTER;
-                                                // Do not set x, y coordinates to keep dialog centered
-                                                dialog.getWindow().setAttributes(closeParams);
-                                                
-                                                // Restore title bar elements to original position
-                                                RelativeLayout titleBarView = dialogView.findViewById(R.id.titleBar);
-                                                if (titleBarView != null) {
-                                                    TextView langIndicator = dialogView.findViewById(R.id.languageIndicator);
-                                                    ImageView optionsIcon = dialogView.findViewById(R.id.moreOptionsIcon);
-                                                    View statusView = dialogView.findViewById(R.id.statusIndicator);
-                                                    
-                                                    if (langIndicator != null && optionsIcon != null && statusView != null) {
-                                                        // Reset to original layout params
-                                                        RelativeLayout.LayoutParams langParams = (RelativeLayout.LayoutParams) langIndicator.getLayoutParams();
-                                                        langParams.addRule(RelativeLayout.START_OF, R.id.moreOptionsIcon);
-                                                        langParams.addRule(RelativeLayout.END_OF, 0);
-                                                        langParams.setMarginStart(0);
-                                                        langIndicator.setLayoutParams(langParams);
-                                                        
-                                                        RelativeLayout.LayoutParams moreParams = (RelativeLayout.LayoutParams) optionsIcon.getLayoutParams();
-                                                        moreParams.addRule(RelativeLayout.ALIGN_PARENT_END, RelativeLayout.TRUE);
-                                                        moreParams.addRule(RelativeLayout.END_OF, 0);
-                                                        moreParams.setMarginStart(0);
-                                                        optionsIcon.setLayoutParams(moreParams);
-                                                        
-                                                        RelativeLayout.LayoutParams statusParams = (RelativeLayout.LayoutParams) statusView.getLayoutParams();
-                                                        statusParams.addRule(RelativeLayout.START_OF, R.id.languageIndicator);
-                                                        statusParams.addRule(RelativeLayout.END_OF, 0);
-                                                        statusParams.setMarginStart(0);
-                                                        statusView.setLayoutParams(statusParams);
-                                                    }
-                                                }
-                                            }
-                                        });
-                                    }
-                                    
-                                    if (dialogChatRecyclerView != null && dialogChatInput != null && dialogSendButton != null) {
-                                        // Set up dialog chat components
-                                        List<ChatMessage> dialogChatMessages = new ArrayList<>();
-                                        ChatAdapter dialogChatAdapter = new ChatAdapter(dialogChatMessages);
-                                        dialogChatRecyclerView.setAdapter(dialogChatAdapter);
-                                        dialogChatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-                                        
-                                        // Add welcome message from AI
-                                        dialogChatMessages.add(new ChatMessage("Hi there! I'm your AI coding assistant. How can I help with your code today?", false));
-                                        dialogChatAdapter.notifyDataSetChanged();
-                                        
-                                        // Set up send button click listener
-                                        dialogSendButton.setOnClickListener(view -> {
-                                            String message = dialogChatInput.getText().toString().trim();
-                                            if (!message.isEmpty()) {
-                                                // Add user message
-                                                dialogChatMessages.add(new ChatMessage(message, true));
-                                                dialogChatAdapter.notifyItemInserted(dialogChatMessages.size() - 1);
-                                                dialogChatRecyclerView.scrollToPosition(dialogChatMessages.size() - 1);
-                                                dialogChatInput.setText("");
-                                                
-                                                // TODO: Add AI response logic
-                                                // Simulate AI response for now
-                                                new Handler().postDelayed(() -> {
-                                                    dialogChatMessages.add(new ChatMessage("I've analyzed your code. It looks like you're using JavaScript to log a number. Is there anything specific you'd like help with?", false));
-                                                    dialogChatAdapter.notifyItemInserted(dialogChatMessages.size() - 1);
-                                                    dialogChatRecyclerView.scrollToPosition(dialogChatMessages.size() - 1);
-                                                }, 2000);
-                                            }
-                                        });
-                                        
-                                        // Set focus on input field
-                                        dialogChatInput.requestFocus();
-                                    }
+                                    });
                                 }
-                            } else {
-                                Toast.makeText(this, "Chat functionality not available in this dialog", Toast.LENGTH_SHORT).show();
                             }
+                            break;
+                        case 3: // Open in Directory
+                            // Get the file path
+                            String fileName = titleHolder[0] + languages[selectedLanguage[0]];
+                            String content = contentInput.getText().toString();
+                            
+                            // Create an intent to open the file
+                            Intent intent = new Intent(Intent.ACTION_VIEW);
+                            intent.setDataAndType(Uri.parse("file:///"), "resource/folder");
+                            if (intent.resolveActivity(getPackageManager()) != null) {
+                                startActivity(intent);
+                            } else {
+                                Toast.makeText(PersonalProfileHome.this, 
+                                    "No application found to open directory", 
+                                    Toast.LENGTH_SHORT).show();
+                            }
+                            break;
+                        case 4: // Chat with AI code base
+                            // Show chat section if not visible
+                            LinearLayout chatSection = dialogView.findViewById(R.id.dialogChatPanel);
+                            if (chatSection != null) {
+                                chatSection.setVisibility(View.VISIBLE);
+                                chatSection.setAlpha(0f);
+                                chatSection.animate()
+                                    .alpha(1f)
+                                    .setDuration(200)
+                                    .start();
+                                
+                                // Setup close button for chat panel
+                                ImageView closeChat = dialogView.findViewById(R.id.closeChat);
+                                if (closeChat != null) {
+                                    closeChat.setOnClickListener(closeView -> {
+                                        chatSection.animate()
+                                            .alpha(0f)
+                                            .setDuration(200)
+                                            .withEndAction(() -> chatSection.setVisibility(View.GONE))
+                                            .start();
+                                    });
+                                }
+                                
+                                // Setup send button for chat
+                                ImageButton sendButton = dialogView.findViewById(R.id.dialogSendButton);
+                                if (sendButton != null) {
+                                    sendButton.setOnClickListener(sendView -> {
+                                        EditText chatInput = dialogView.findViewById(R.id.dialogChatInput);
+                                        if (chatInput != null && !chatInput.getText().toString().trim().isEmpty()) {
+                                            // Get the message
+                                            String message = chatInput.getText().toString().trim();
+                                            
+                                            // Display user message (you'd need to implement this method)
+                                            addChatMessage(dialogView, message, true);
+                                            
+                                            // Clear the input
+                                            chatInput.setText("");
+                                            
+                                            // Simulate AI response (for demo)
+                                            new Handler().postDelayed(() -> {
+                                                addChatMessage(dialogView, "I'm analyzing your code. This appears to be " + 
+                                                    languages[selectedLanguage[0]] + " code.", false);
+                                            }, 1000);
+                                        }
+                                    });
+                                }
+                                
+                                // Setup add tag functionality
+                                LinearLayout addTagButton = dialogView.findViewById(R.id.addTagButton);
+                                if (addTagButton != null) {
+                                    addTagButton.setOnClickListener(tagView -> {
+                                        showAddTagDialogForChat(dialogView);
+                                    });
+                                }
+                                
+                                // Focus on chat input
+                                EditText chatInput = dialogView.findViewById(R.id.dialogChatInput);
+                                if (chatInput != null) {
+                                    chatInput.requestFocus();
+                                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                                    imm.showSoftInput(chatInput, InputMethodManager.SHOW_IMPLICIT);
+                                }
+                            }
+                            break;
+                        case 5: // Delete
+                            // Show a confirmation dialog in system style
+                            new AlertDialog.Builder(PersonalProfileHome.this, android.R.style.Theme_Material_Light_Dialog_Alert)
+                                .setTitle("Delete Note")
+                                .setMessage("Are you sure you want to delete this note?")
+                                .setPositiveButton(android.R.string.yes, (dialogInterface, which) -> {
+                                    // Delete the note
+                                    deleteNote(notePosition);
+                                    
+                                    // Dismiss the edit dialog
+                                    dialog.dismiss();
+                                })
+                                .setNegativeButton(android.R.string.no, null)
+                                .setIcon(android.R.drawable.ic_dialog_alert)
+                                .show();
                             break;
                     }
                     return true;
@@ -1277,184 +1105,50 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     }
 
     private void executeTerminalCommand(String command, String os, TextView output) {
-        StringBuilder result = new StringBuilder();
+        // Get the CodeExecutor
+        CodeExecutor executor = new CodeExecutor(this);
         
-        try {
-            String currentOutput = output.getText().toString();
-            String prompt = getPromptForOS(os);
-            
-            // Simulate terminal commands
-            if (command.startsWith("git ")) {
-                simulateGitCommand(command, result);
+        // Enable local execution if possible
+        executor.setLocalExecutionEnabled(true);
+        
+        // Set working directory to app-specific directory
+        String appDir = getFilesDir().getAbsolutePath();
+        executor.setCurrentWorkingDirectory(appDir);
+        
+        // Set basic environment variables
+        Map<String, String> env = new HashMap<>();
+        env.put("HOME", appDir);
+        env.put("PATH", System.getenv("PATH"));
+        env.put("TERM", "xterm-256color");
+        executor.setEnvironmentVariables(env);
+        
+        // Show command in output with appropriate prompt
+        String prompt = getPromptForOS(os);
+        output.append(prompt + " " + command + "\n");
+        
+        // Execute command with the appropriate OS type
+        executor.executeTerminalCommand(command, os, result -> {
+            if (!result.error.isEmpty()) {
+                // Show error in red
+                SpannableString errorText = new SpannableString(result.error);
+                errorText.setSpan(new ForegroundColorSpan(Color.RED), 0, result.error.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                output.append(errorText);
             } else {
-                switch (os) {
-                    case "Windows":
-                        simulateWindowsCommand(command, result);
-                        break;
-                    case "macOS":
-                    case "Linux":
-                        simulateUnixCommand(command, result);
-                        break;
-                }
+                // Show output
+                output.append(result.output);
             }
             
-            // Update the output TextView on the UI thread
-            runOnUiThread(() -> {
-                output.setText(currentOutput + "\n" + prompt + command + "\n" + result.toString());
-                
-                // Scroll to the bottom
-                output.post(() -> {
-                    if (output.getLayout() != null) {
-                        int scrollAmount = output.getLayout().getLineTop(output.getLineCount()) - output.getHeight();
-                        if (scrollAmount > 0) {
-                            output.scrollTo(0, scrollAmount);
-                        } else {
-                            output.scrollTo(0, 0);
-                        }
-                    }
-                });
-            });
-            
-        } catch (Exception e) {
-            String errorMessage = "Error executing command: " + e.getMessage() + "\n";
-            runOnUiThread(() -> output.append(errorMessage));
-        }
-    }
-
-    private void simulateWindowsCommand(String command, StringBuilder result) {
-        File workingDir = new File(getFilesDir(), "workspace");
-        
-        if (command.equals("dir")) {
-            if (!workingDir.exists()) {
-                workingDir.mkdirs();
+            // Scroll to bottom
+            final int scrollAmount = output.getLayout().getLineTop(output.getLineCount()) - output.getHeight();
+            if (scrollAmount > 0) {
+                output.scrollTo(0, scrollAmount);
+            } else {
+                output.scrollTo(0, 0);
             }
             
-            result.append(" Directory of ").append(workingDir.getAbsolutePath()).append("\n\n");
-            
-            File[] files = workingDir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    String fileType = file.isDirectory() ? "<DIR>" : "     ";
-                    String lastModified = new java.text.SimpleDateFormat("MM/dd/yyyy  HH:mm")
-                            .format(new java.util.Date(file.lastModified()));
-                    String size = file.isDirectory() ? "    " : String.format("%8d", file.length());
-                    
-                    result.append(String.format("%s  %s  %s  %s\n",
-                            lastModified, fileType, size, file.getName()));
-                }
-            }
-            
-            result.append("\n     Total files listed:\n")
-                  .append("          ").append(files != null ? files.length : 0).append(" File(s)\n");
-                  
-        } else if (command.equals("cd")) {
-            result.append(workingDir.getAbsolutePath()).append("\n");
-            
-        } else if (command.startsWith("echo ")) {
-            result.append(command.substring(5)).append("\n");
-            
-        } else if (command.equals("help")) {
-            result.append("Supported commands:\n")
-                  .append("  dir         - Lists files and directories\n")
-                  .append("  cd          - Shows current directory\n")
-                  .append("  echo [text] - Displays text\n")
-                  .append("  cls         - Clears the screen\n")
-                  .append("  git [cmd]   - Git commands\n");
-                  
-        } else if (command.equals("cls")) {
-            // Clear will be handled differently
-            result.append("\n");
-            
-        } else {
-            result.append("'").append(command).append("' is not recognized as an internal command\n");
-        }
-    }
-
-    private void simulateUnixCommand(String command, StringBuilder result) {
-        File workingDir = new File(getFilesDir(), "workspace");
-        
-        if (command.equals("ls")) {
-            if (!workingDir.exists()) {
-                workingDir.mkdirs();
-            }
-            
-            File[] files = workingDir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    result.append(file.getName()).append("  ");
-                }
-            }
-            result.append("\n");
-            
-        } else if (command.equals("pwd")) {
-            result.append(workingDir.getAbsolutePath()).append("\n");
-            
-        } else if (command.startsWith("echo ")) {
-            result.append(command.substring(5)).append("\n");
-            
-        } else if (command.equals("clear")) {
-            // Clear will be handled differently
-            result.append("\n");
-            
-        } else if (command.equals("help")) {
-            result.append("Supported commands:\n")
-                  .append("  ls          - Lists files and directories\n")
-                  .append("  pwd         - Shows current directory\n")
-                  .append("  echo [text] - Displays text\n")
-                  .append("  clear       - Clears the screen\n")
-                  .append("  git [cmd]   - Git commands\n");
-                  
-        } else {
-            result.append("command not found: ").append(command).append("\n");
-        }
-    }
-
-    private void simulateGitCommand(String command, StringBuilder result) {
-        String[] parts = command.split("\\s+");
-        if (parts.length < 2) {
-            result.append("git: missing command\n");
-            return;
-        }
-        
-        String gitCommand = parts[1];
-        switch (gitCommand) {
-            case "init":
-                result.append("Initialized empty Git repository\n");
-                break;
-            case "status":
-                result.append("On branch master\n")
-                      .append("No commits yet\n")
-                      .append("nothing to commit (create/copy files and use \"git add\" to track)\n");
-                break;
-            case "add":
-                if (parts.length < 3) {
-                    result.append("Nothing specified, nothing added.\n");
-                } else {
-                    result.append("add '").append(parts[2]).append("'\n");
-                }
-                break;
-            case "commit":
-                if (parts.length < 4 || !parts[2].equals("-m")) {
-                    result.append("Please provide a commit message using -m\n");
-                } else {
-                    result.append("Created commit: ").append(parts[3]).append("\n");
-                }
-                break;
-            case "branch":
-                result.append("* master\n");
-                break;
-            case "help":
-                result.append("Common Git commands:\n")
-                      .append("   init    Create empty Git repository\n")
-                      .append("   status  Show working tree status\n")
-                      .append("   add     Add file contents to index\n")
-                      .append("   commit  Record changes to repository\n")
-                      .append("   branch  List branches\n");
-                break;
-            default:
-                result.append("git: '").append(gitCommand).append("' is not a git command.\n");
-                break;
-        }
+            // Add prompt for next command
+            output.append(prompt + " ");
+        });
     }
 
     private String getPromptForOS(String os) {
@@ -1513,168 +1207,6 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private void clearErrorHighlighting(EditText contentInput) {
         String content = contentInput.getText().toString();
         contentInput.setText(content);
-    }
-
-    private void initializeChatPanel() {
-        chatPanel = findViewById(R.id.chatPanel);
-        closeChatButton = findViewById(R.id.closeChatButton);
-        chatInput = findViewById(R.id.chatInput);
-        sendButton = findViewById(R.id.sendButton);
-        chatRecyclerView = findViewById(R.id.chatRecyclerView);
-
-        // Initialize chat messages
-        chatMessages = new ArrayList<>();
-        chatAdapter = new ChatAdapter(chatMessages);
-        chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        chatRecyclerView.setAdapter(chatAdapter);
-
-        // Hide chat panel initially
-        chatPanel.setVisibility(View.GONE);
-
-        // Set up close button
-        closeChatButton.setOnClickListener(v -> hideChatPanel());
-
-        // Set up send button
-        sendButton.setOnClickListener(v -> sendChatMessage());
-    }
-
-    private void showChatPanel() {
-        // Ensure chat panel is visible and ready for display
-        chatPanel.setVisibility(View.VISIBLE);
-        chatPanel.setAlpha(0f);
-        
-        // Get screen width
-        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(metrics);
-        
-        // Set proper width and position
-        ViewGroup.LayoutParams params = chatPanel.getLayoutParams();
-        params.width = (metrics.widthPixels / 2) - 20;
-        chatPanel.setLayoutParams(params);
-        
-        // Explicitly position at right half of screen
-        chatPanel.setX(metrics.widthPixels / 2 + 10);
-        
-        // Make sure chat panel is visible above everything
-        ViewGroup rootView = (ViewGroup) getWindow().getDecorView().getRootView();
-        if (chatPanel.getParent() != null) {
-            ((ViewGroup) chatPanel.getParent()).removeView(chatPanel);
-        }
-        rootView.addView(chatPanel);
-        
-        // Set very high elevation and bring to front
-        chatPanel.setElevation(9999f);
-        chatPanel.bringToFront();
-        
-        // Animate the chat panel in
-        chatPanel.animate()
-            .alpha(1f)
-            .setDuration(300)
-            .start();
-        
-        // Force redraw
-        chatPanel.invalidate();
-        
-        // Request focus on chat input
-        chatInput.requestFocus();
-    }
-
-    private void hideChatPanel() {
-        chatPanel.animate()
-            .alpha(0f)
-            .setDuration(300)
-            .withEndAction(() -> {
-                chatPanel.setVisibility(View.GONE);
-                chatPanel.setElevation(0f);
-            })
-            .start();
-    }
-
-    private void sendChatMessage() {
-        String message = chatInput.getText().toString().trim();
-        if (!message.isEmpty()) {
-            // Add user message
-            chatMessages.add(new ChatMessage(message, true));
-            chatAdapter.notifyItemInserted(chatMessages.size() - 1);
-            chatRecyclerView.scrollToPosition(chatMessages.size() - 1);
-
-            // Clear input
-            chatInput.setText("");
-
-            // TODO: Process message and get AI response
-            // For now, just echo the message
-            String aiResponse = "You said: " + message;
-            chatMessages.add(new ChatMessage(aiResponse, false));
-            chatAdapter.notifyItemInserted(chatMessages.size() - 1);
-            chatRecyclerView.scrollToPosition(chatMessages.size() - 1);
-        }
-    }
-
-    // Chat Message class
-    private static class ChatMessage {
-        String message;
-        boolean isUser;
-
-        ChatMessage(String message, boolean isUser) {
-            this.message = message;
-            this.isUser = isUser;
-        }
-    }
-
-    // Chat Adapter class
-    private static class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder> {
-        private List<ChatMessage> messages;
-
-        ChatAdapter(List<ChatMessage> messages) {
-            this.messages = messages;
-        }
-
-        @NonNull
-        @Override
-        public ChatViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.chat_message_item, parent, false);
-            return new ChatViewHolder(view);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull ChatViewHolder holder, int position) {
-            ChatMessage message = messages.get(position);
-            holder.messageText.setText(message.message);
-            
-            // Align messages based on sender
-            if (message.isUser) {
-                holder.messageText.setBackgroundResource(R.drawable.user_message_background);
-                holder.messageText.setTextColor(Color.WHITE);
-                holder.itemView.setLayoutParams(new RecyclerView.LayoutParams(
-                    RecyclerView.LayoutParams.MATCH_PARENT,
-                    RecyclerView.LayoutParams.WRAP_CONTENT
-                ));
-                holder.messageText.setGravity(android.view.Gravity.END);
-            } else {
-                holder.messageText.setBackgroundResource(R.drawable.ai_message_background);
-                holder.messageText.setTextColor(Color.BLACK);
-                holder.itemView.setLayoutParams(new RecyclerView.LayoutParams(
-                    RecyclerView.LayoutParams.MATCH_PARENT,
-                    RecyclerView.LayoutParams.WRAP_CONTENT
-                ));
-                holder.messageText.setGravity(android.view.Gravity.START);
-            }
-        }
-
-        @Override
-        public int getItemCount() {
-            return messages.size();
-        }
-
-        static class ChatViewHolder extends RecyclerView.ViewHolder {
-            TextView messageText;
-
-            ChatViewHolder(@NonNull View itemView) {
-                super(itemView);
-                messageText = itemView.findViewById(R.id.messageText);
-            }
-        }
     }
 
     // Add this new method to handle adding custom tags
@@ -1853,5 +1385,243 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     // Helper method to convert dp to pixels
     private int dpToPx(int dp) {
         return (int) (dp * getResources().getDisplayMetrics().density);
+    }
+
+    // Add a method to show add tag dialog for chat panel
+    private void showAddTagDialogForChat(View dialogView) {
+        // Create a custom dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.AlertDialogTheme);
+        
+        // Inflate and set the custom layout
+        View tagDialogView = getLayoutInflater().inflate(R.layout.dialog_add_tag, null);
+        builder.setView(tagDialogView);
+        
+        // Get the input field
+        TextInputEditText tagNameInput = tagDialogView.findViewById(R.id.tagNameInput);
+        
+        // Create the dialog
+        AlertDialog dialog = builder.create();
+        
+        // Create stylized button text
+        SpannableString positiveText = new SpannableString("ADD");
+        positiveText.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorPrimary)), 0, positiveText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        positiveText.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), 0, positiveText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        SpannableString negativeText = new SpannableString("CANCEL");
+        negativeText.setSpan(new ForegroundColorSpan(getResources().getColor(android.R.color.darker_gray)), 0, negativeText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        // Add tag the buttons
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, "ADD", (dialogInterface, which) -> {
+            String tagName = tagNameInput.getText().toString().trim();
+            if (!tagName.isEmpty()) {
+                addChatTag(dialogView, tagName);
+            }
+        });
+        
+        dialog.setButton(AlertDialog.BUTTON_NEGATIVE, "CANCEL", (dialogInterface, which) -> {
+            // Dialog will be dismissed automatically
+        });
+        
+        // Show the dialog
+        dialog.show();
+        
+        // Style the buttons after dialog is shown
+        Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        
+        positiveButton.setText(positiveText);
+        negativeButton.setText(negativeText);
+        
+        // Auto-show keyboard
+        tagNameInput.requestFocus();
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(tagNameInput, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    // Add a method to add a tag to the chat panel
+    private void addChatTag(View dialogView, String tagText) {
+        LinearLayout tagsContainer = dialogView.findViewById(R.id.tagsContainer);
+        if (tagsContainer != null) {
+            TextView newTag = new TextView(this);
+            newTag.setText(tagText);
+            newTag.setTextSize(12);
+            newTag.setTextColor(getResources().getColor(android.R.color.black, getTheme()));
+            newTag.setBackground(getResources().getDrawable(R.drawable.tag_background, getTheme()));
+            newTag.setPadding(
+                dpToPx(12),  // left
+                dpToPx(6),   // top
+                dpToPx(12),  // right
+                dpToPx(6)    // bottom
+            );
+            
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            params.setMarginEnd(dpToPx(8));
+            newTag.setLayoutParams(params);
+            
+            // Make the tag clickable
+            newTag.setClickable(true);
+            newTag.setFocusable(true);
+            
+            // Click to use as prompt
+            newTag.setOnClickListener(view -> {
+                EditText dialogChatInput = dialogView.findViewById(R.id.dialogChatInput);
+                if (dialogChatInput != null) {
+                    String prompt = "Help me with " + newTag.getText().toString();
+                    dialogChatInput.setText(prompt);
+                    dialogChatInput.setSelection(prompt.length());
+                    dialogChatInput.requestFocus();
+                }
+            });
+            
+            // Long press to delete
+            newTag.setOnLongClickListener(longClickView -> {
+                showDeleteTagDialogForChat(newTag.getText().toString(), newTag, tagsContainer);
+                return true;
+            });
+            
+            // Get the add button
+            View addButton = null;
+            for (int i = 0; i < tagsContainer.getChildCount(); i++) {
+                View child = tagsContainer.getChildAt(i);
+                if (child.getId() == R.id.addTagButton) {
+                    addButton = child;
+                    break;
+                }
+            }
+            
+            if (addButton != null) {
+                tagsContainer.removeView(addButton);
+            }
+            
+            // Add the new tag
+            tagsContainer.addView(newTag);
+            
+            // Add the add button back
+            if (addButton != null) {
+                tagsContainer.addView(addButton);
+            }
+            
+            // Show success toast
+            Toast.makeText(this, "Tag added: " + tagText, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // Helper method to show delete tag confirmation for chat
+    private void showDeleteTagDialogForChat(String tagName, View tagView, LinearLayout tagsContainer) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.AlertDialogTheme);
+        
+        // Create stylized message
+        SpannableString message = new SpannableString("Delete tag '" + tagName + "'?");
+        int startPos = message.toString().indexOf(tagName);
+        if (startPos >= 0) {
+            message.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), startPos, startPos + tagName.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            message.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorPrimary)), startPos, startPos + tagName.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        
+        builder.setMessage(message);
+        
+        // Create stylized button text
+        SpannableString positiveText = new SpannableString("DELETE");
+        positiveText.setSpan(new ForegroundColorSpan(getResources().getColor(android.R.color.holo_red_light)), 0, positiveText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        positiveText.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), 0, positiveText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        SpannableString negativeText = new SpannableString("CANCEL");
+        negativeText.setSpan(new ForegroundColorSpan(getResources().getColor(android.R.color.darker_gray)), 0, negativeText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        // Add the buttons
+        builder.setPositiveButton("DELETE", (dialog, which) -> {
+            // Animate tag removal
+            tagView.animate()
+                    .alpha(0f)
+                    .translationX(tagView.getWidth())
+                    .setDuration(300)
+                    .withEndAction(() -> {
+                        tagsContainer.removeView(tagView);
+                    })
+                    .start();
+        });
+        
+        builder.setNegativeButton("CANCEL", (dialog, which) -> {
+            // Dialog will be dismissed automatically
+        });
+        
+        // Show the dialog
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        // Style the buttons after dialog is shown
+        Button positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        
+        positiveButton.setText(positiveText);
+        negativeButton.setText(negativeText);
+    }
+
+    // Method to add chat messages
+    private void addChatMessage(View dialogView, String message, boolean isUser) {
+        RecyclerView chatRecyclerView = dialogView.findViewById(R.id.dialogChatRecyclerView);
+        if (chatRecyclerView != null) {
+            // Check if RecyclerView has an adapter
+            RecyclerView.Adapter adapter = chatRecyclerView.getAdapter();
+            if (adapter == null) {
+                // Create a new adapter if one doesn't exist
+                adapter = new ChatAdapter();
+                chatRecyclerView.setAdapter(adapter);
+                chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+            }
+            
+            // Add the message
+            ((ChatAdapter) adapter).addMessage(message, isUser);
+            
+            // Scroll to the bottom
+            chatRecyclerView.scrollToPosition(((ChatAdapter) adapter).getItemCount() - 1);
+        }
+    }
+
+    // Simple chat adapter
+    private class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ChatViewHolder> {
+        private List<String> messages = new ArrayList<>();
+        private List<Boolean> isUserMessages = new ArrayList<>();
+        
+        public void addMessage(String message, boolean isUser) {
+            messages.add(message);
+            isUserMessages.add(isUser);
+            notifyItemInserted(messages.size() - 1);
+        }
+        
+        @NonNull
+        @Override
+        public ChatViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                .inflate(viewType == 1 ? R.layout.item_user_message : R.layout.item_ai_message, parent, false);
+            return new ChatViewHolder(view);
+        }
+        
+        @Override
+        public void onBindViewHolder(@NonNull ChatViewHolder holder, int position) {
+            holder.messageText.setText(messages.get(position));
+        }
+        
+        @Override
+        public int getItemCount() {
+            return messages.size();
+        }
+        
+        @Override
+        public int getItemViewType(int position) {
+            return isUserMessages.get(position) ? 1 : 0;
+        }
+        
+        class ChatViewHolder extends RecyclerView.ViewHolder {
+            TextView messageText;
+            
+            ChatViewHolder(@NonNull View itemView) {
+                super(itemView);
+                messageText = itemView.findViewById(R.id.messageText);
+            }
+        }
     }
 }
