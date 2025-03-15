@@ -9,6 +9,8 @@ import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.Outline;
+import android.view.ViewOutlineProvider;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -73,6 +75,9 @@ import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import android.util.Log;
+import android.widget.PopupWindow;
+import android.view.Gravity;
 
 public class PersonalProfileHome extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -82,8 +87,10 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     private DrawerLayout drawerLayout;
     private RaabtaaDBHelper dbHelper;
     private List<Note> notesList = new ArrayList<>();
+    private List<Folder> foldersList = new ArrayList<>();
     private int currentUserId = 1; // Replace with the actual user ID
     private LinearLayout tagsContainer;
+    private FloatingActionButton fabAdd;
 
     private static final String PREFS_NAME = "NotesAppPrefs";
     private static final String SELECTED_OS = "selected_os";
@@ -140,6 +147,12 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         ImageView profileIcon = toolbar.findViewById(R.id.profileIcon);
         tagsContainer = findViewById(R.id.tagsContainer);
 
+        // Remove the blur effect on profile icon 
+        // applyBlurToProfileAvatar(profileIcon);
+        
+        // Make the profile icon circular
+        makeProfileIconCircular(profileIcon);
+        
         // Set the background color based on the current theme
         if (ThemeHelper.isDarkTheme(this)) {
             navigationView.setBackgroundColor(ContextCompat.getColor(this, R.color.drawer_background_dark));
@@ -204,7 +217,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
         // Initialize RecyclerView and FAB
         recyclerView = findViewById(R.id.recyclerView);
-        FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
+        fabAdd = findViewById(R.id.fabAdd);
 
         // Initialize data for grid
         dataList = new ArrayList<>();
@@ -218,7 +231,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         recyclerView.setAdapter(gridAdapter);
 
         // Handle Floating Action Button click
-        fabAdd.setOnClickListener(v -> openAddModal());
+        fabAdd.setOnClickListener(v -> showAddOptionDialog());
 
         // Handle drag-and-drop functionality
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
@@ -244,6 +257,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         dbHelper = new RaabtaaDBHelper(this);
         currentUserId = getIntent().getIntExtra("userId", 1);
         loadNotes();
+        loadFolders();
 
         // Handle incoming intent
         handleIncomingIntent(getIntent());
@@ -359,6 +373,101 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         gridAdapter.updateData(filteredList);
     }
 
+    /**
+     * Shows a custom popup menu with options to add file or folder
+     */
+    private void showAddOptionDialog() {
+        // Inflate the custom popup layout
+        View popupView = LayoutInflater.from(this).inflate(R.layout.popup_add_options, null);
+        
+        // Create the popup window
+        int width = LinearLayout.LayoutParams.WRAP_CONTENT;
+        int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+        final PopupWindow popupWindow = new PopupWindow(popupView, width, height, true);
+        
+        // Set up option click listeners
+        View addFileOption = popupView.findViewById(R.id.option_add_file);
+        View addFolderOption = popupView.findViewById(R.id.option_add_folder);
+        View closeButton = popupView.findViewById(R.id.button_close);
+        
+        addFileOption.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            openAddModal();
+        });
+        
+        addFolderOption.setOnClickListener(v -> {
+            popupWindow.dismiss();
+            openAddFolderModal();
+        });
+        
+        closeButton.setOnClickListener(v -> popupWindow.dismiss());
+        
+        // Set animation style
+        popupWindow.setAnimationStyle(android.R.style.Animation_Dialog);
+        
+        // Show the popup window centered over the FAB
+        // Calculate position to center above FAB
+        popupWindow.showAsDropDown(fabAdd, 
+                -dpToPx(100),  // Center horizontally (200dp width / 2 = 100dp offset)
+                -dpToPx(350),  // Position well above the FAB
+                Gravity.CENTER);
+    }
+    
+    /**
+     * Opens a dialog for creating a new folder
+     */
+    private void openAddFolderModal() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
+        EditText inputText = dialogView.findViewById(R.id.inputText);
+        
+        // Hide the content input and language indicator since they're not needed for folders
+        EditText contentInput = dialogView.findViewById(R.id.contentInput);
+        TextView languageIndicator = dialogView.findViewById(R.id.languageIndicator);
+        TextView lineNumbers = dialogView.findViewById(R.id.lineNumbers);
+        View statusIndicator = dialogView.findViewById(R.id.statusIndicator);
+        
+        if (contentInput != null) contentInput.setVisibility(View.GONE);
+        if (languageIndicator != null) languageIndicator.setVisibility(View.GONE);
+        if (lineNumbers != null) lineNumbers.setVisibility(View.GONE);
+        if (statusIndicator != null) statusIndicator.setVisibility(View.GONE);
+        
+        // Change the hint for folder name
+        inputText.setHint("Folder Name");
+        
+        // Setup save button
+        ImageView saveIcon = dialogView.findViewById(R.id.saveIcon);
+        
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
+                .setView(dialogView)
+                .create();
+                
+        // Apply blur effect to background
+        // View rootView = findViewById(android.R.id.content);
+        // BlurHelper.applyBlurEffect(dialog, rootView);
+        
+        saveIcon.setOnClickListener(v -> {
+            String folderName = inputText.getText().toString();
+            if (!folderName.isEmpty()) {
+                // Create a new folder in the database
+                long folderId = dbHelper.addFolder(currentUserId, folderName);
+                
+                if (folderId != -1) {
+                    // Refresh the folders list
+                    loadFolders();
+                    
+                    dialog.dismiss();
+                    Toast.makeText(this, "Folder created: " + folderName, Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Error creating folder", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "Folder name cannot be empty", Toast.LENGTH_SHORT).show();
+            }
+        });
+        
+        dialog.show();
+    }
+
     private void openAddModal() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
         EditText inputText = dialogView.findViewById(R.id.inputText);
@@ -466,6 +575,10 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
                 .setView(dialogView)
                 .create();
+                
+        // Apply blur effect to background
+        // View rootView = findViewById(android.R.id.content);
+        // BlurHelper.applyBlurEffect(dialog, rootView);
 
         saveIcon.setOnClickListener(v -> {
             String title = inputText.getText().toString();
@@ -1101,6 +1214,11 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                });
         
         AlertDialog dialog = builder.create();
+        
+        // Apply blur effect to background
+        // View rootView = findViewById(android.R.id.content);
+        // BlurHelper.applyBlurEffect(dialog, rootView);
+        
         dialog.show();
     }
 
@@ -1623,5 +1741,42 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                 messageText = itemView.findViewById(R.id.messageText);
             }
         }
+    }
+
+    /**
+     * Load folders from database
+     */
+    private void loadFolders() {
+        try {
+            // Fetch folders from the database
+            foldersList = dbHelper.getFoldersByUser(currentUserId);
+            
+            // Here you would update your UI to display folders
+            // For example, if you have a RecyclerView for folders:
+            // folderAdapter.updateData(foldersList);
+            
+            Log.d("FOLDERS", "Loaded " + foldersList.size() + " folders");
+        } catch (Exception e) {
+            // If there's an error (like table doesn't exist yet), initialize to empty list
+            foldersList = new ArrayList<>();
+            Log.e("FOLDERS", "Error loading folders: " + e.getMessage());
+            Toast.makeText(this, "Error loading folders", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Makes the profile icon circular
+     */
+    private void makeProfileIconCircular(ImageView profileIcon) {
+        if (profileIcon == null) return;
+        
+        // Apply a circular mask to the profile image
+        profileIcon.setClipToOutline(true);
+        profileIcon.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setOval(0, 0, view.getWidth(), view.getHeight());
+            }
+        });
     }
 }

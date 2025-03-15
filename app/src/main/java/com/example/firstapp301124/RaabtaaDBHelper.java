@@ -19,7 +19,7 @@ import java.util.Locale;
 
 public class RaabtaaDBHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "RaabtaaTest2.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 4;
 
     // Table and column names
     private static final String TABLE_USER = "users";
@@ -32,6 +32,8 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
     private static final String TABLE_PAYMENTS = "payments";
     private static final String TABLE_PRODUCTS = "products";
     private static final String TABLE_SOCIAL_LINKS = "social_links";
+    private static final String TABLE_FOLDERS = "folders";
+    private static final String TABLE_FOLDER_FILES = "folder_files";
 
     // Common column names
     private static final String KEY_ID = "id";
@@ -220,11 +222,35 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
                 KEY_UPDATED_AT + " TEXT DEFAULT CURRENT_TIMESTAMP, " +
                 "FOREIGN KEY (" + KEY_USER_ID + ") REFERENCES " + TABLE_USER + "(" + KEY_ID + "))";
         db.execSQL(CREATE_SOCIAL_LINKS_TABLE);
+        
+        // Create the folders table
+        String CREATE_FOLDERS_TABLE = "CREATE TABLE " + TABLE_FOLDERS + " (" +
+                KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                KEY_USER_ID + " INTEGER NOT NULL, " +
+                KEY_NAME + " TEXT NOT NULL, " +
+                KEY_COLOR_ID + " INTEGER, " +
+                KEY_CREATED_AT + " TEXT DEFAULT CURRENT_TIMESTAMP, " +
+                KEY_UPDATED_AT + " TEXT DEFAULT CURRENT_TIMESTAMP, " +
+                "FOREIGN KEY (" + KEY_USER_ID + ") REFERENCES " + TABLE_USER + "(" + KEY_ID + "), " +
+                "FOREIGN KEY (" + KEY_COLOR_ID + ") REFERENCES " + TABLE_COLORS + "(" + KEY_ID + "))";
+        db.execSQL(CREATE_FOLDERS_TABLE);
+        
+        // Create the folder_files junction table for many-to-many relationship between folders and notes
+        String CREATE_FOLDER_FILES_TABLE = "CREATE TABLE " + TABLE_FOLDER_FILES + " (" +
+                KEY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "folder_id INTEGER NOT NULL, " +
+                "note_id INTEGER NOT NULL, " +
+                KEY_CREATED_AT + " TEXT DEFAULT CURRENT_TIMESTAMP, " +
+                "FOREIGN KEY (folder_id) REFERENCES " + TABLE_FOLDERS + "(" + KEY_ID + "), " +
+                "FOREIGN KEY (note_id) REFERENCES " + TABLE_NOTES + "(" + KEY_ID + "))";
+        db.execSQL(CREATE_FOLDER_FILES_TABLE);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         // Drop all tables if they exist
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_FOLDER_FILES);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_FOLDERS);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_USER);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_CARTS);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_CATEGORIES);
@@ -478,5 +504,160 @@ public class RaabtaaDBHelper extends SQLiteOpenHelper {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
         Date date = new Date();
         return dateFormat.format(date);
+    }
+    
+    // Add a new folder
+    public long addFolder(int userId, String name) {
+        return addFolder(userId, name, 1); // Default to color ID 1
+    }
+    
+    // Add a new folder with specific color
+    public long addFolder(int userId, String name, int colorId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(KEY_USER_ID, userId);
+        values.put(KEY_NAME, name);
+        values.put(KEY_COLOR_ID, colorId);
+        values.put(KEY_CREATED_AT, getCurrentDateTime());
+        values.put(KEY_UPDATED_AT, getCurrentDateTime());
+        
+        long folderId = db.insert(TABLE_FOLDERS, null, values);
+        db.close();
+        
+        return folderId;
+    }
+    
+    // Update an existing folder
+    public boolean updateFolder(int id, String name, int colorId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(KEY_NAME, name);
+        values.put(KEY_COLOR_ID, colorId);
+        values.put(KEY_UPDATED_AT, getCurrentDateTime());
+        
+        int rowsAffected = db.update(TABLE_FOLDERS, values, KEY_ID + " = ?", new String[]{String.valueOf(id)});
+        db.close();
+        
+        return rowsAffected > 0;
+    }
+    
+    // Delete a folder by ID
+    public boolean deleteFolder(int id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        
+        // First, delete all folder-file relationships
+        db.delete(TABLE_FOLDER_FILES, "folder_id = ?", new String[]{String.valueOf(id)});
+        
+        // Then delete the folder itself
+        int rowsAffected = db.delete(TABLE_FOLDERS, KEY_ID + " = ?", new String[]{String.valueOf(id)});
+        db.close();
+        
+        return rowsAffected > 0;
+    }
+    
+    // Retrieve all folders for a user
+    public List<Folder> getFoldersByUser(int userId) {
+        List<Folder> folders = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        
+        try {
+            Cursor cursor = db.rawQuery(
+                "SELECT " + KEY_ID + ", " + KEY_USER_ID + ", " + KEY_NAME + ", " +
+                KEY_COLOR_ID + ", " + KEY_CREATED_AT + ", " + KEY_UPDATED_AT +
+                " FROM " + TABLE_FOLDERS + 
+                " WHERE " + KEY_USER_ID + " = ?", 
+                new String[]{String.valueOf(userId)}
+            );
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    int id = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_ID));
+                    String name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_NAME));
+                    int colorId = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_COLOR_ID));
+                    String createdAt = cursor.getString(cursor.getColumnIndexOrThrow(KEY_CREATED_AT));
+                    String updatedAt = cursor.getString(cursor.getColumnIndexOrThrow(KEY_UPDATED_AT));
+                    
+                    Folder folder = new Folder(id, userId, name, colorId, createdAt, updatedAt);
+                    folders.add(folder);
+                } while (cursor.moveToNext());
+                cursor.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("DB_ERROR", "Error getting folders: " + e.getMessage());
+        } finally {
+            db.close();
+        }
+        
+        return folders;
+    }
+    
+    // Add a note to a folder
+    public boolean addNoteToFolder(int folderId, int noteId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("folder_id", folderId);
+        values.put("note_id", noteId);
+        values.put(KEY_CREATED_AT, getCurrentDateTime());
+        
+        long id = db.insert(TABLE_FOLDER_FILES, null, values);
+        db.close();
+        
+        return id != -1;
+    }
+    
+    // Remove a note from a folder
+    public boolean removeNoteFromFolder(int folderId, int noteId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rowsAffected = db.delete(TABLE_FOLDER_FILES, 
+            "folder_id = ? AND note_id = ?", 
+            new String[]{String.valueOf(folderId), String.valueOf(noteId)});
+        db.close();
+        
+        return rowsAffected > 0;
+    }
+    
+    // Get all notes in a folder
+    public List<Note> getNotesByFolder(int folderId) {
+        List<Note> notes = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        
+        try {
+            // Join the folder_files and notes tables to get the notes in the folder
+            Cursor cursor = db.rawQuery(
+                "SELECT n." + KEY_ID + ", n." + KEY_USER_ID + ", n." + KEY_TITLE + ", " +
+                "n." + KEY_COLOR_ID + ", n." + KEY_IS_PINNED + ", n." + KEY_CREATED_AT + ", n." + KEY_UPDATED_AT +
+                " FROM " + TABLE_NOTES + " n" +
+                " JOIN " + TABLE_FOLDER_FILES + " ff ON n." + KEY_ID + " = ff.note_id" +
+                " WHERE ff.folder_id = ?", 
+                new String[]{String.valueOf(folderId)}
+            );
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    int id = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_ID));
+                    int userId = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_USER_ID));
+                    String title = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TITLE));
+                    int colorId = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_COLOR_ID));
+                    int isPinned = cursor.getInt(cursor.getColumnIndexOrThrow(KEY_IS_PINNED));
+                    String createdAt = cursor.getString(cursor.getColumnIndexOrThrow(KEY_CREATED_AT));
+                    String updatedAt = cursor.getString(cursor.getColumnIndexOrThrow(KEY_UPDATED_AT));
+                    
+                    // Load content from file system
+                    String content = loadContentFromFile(id);
+                    
+                    Note note = new Note(id, userId, title, content, colorId, isPinned, createdAt, updatedAt);
+                    notes.add(note);
+                } while (cursor.moveToNext());
+                cursor.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("DB_ERROR", "Error getting notes by folder: " + e.getMessage());
+        } finally {
+            db.close();
+        }
+        
+        return notes;
     }
 }
