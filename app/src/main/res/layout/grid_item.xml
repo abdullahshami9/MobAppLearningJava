@@ -7,13 +7,22 @@
     android:orientation="vertical"
     android:gravity="center">
 
+    <ImageView
+        android:id="@+id/itemIcon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginBottom="8dp"
+        android:contentDescription="Item icon"
+        android:src="@drawable/ic_file" />
+
     <TextView
         android:id="@+id/itemTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="@android:color/black"
         android:text="Item"
-        android:textSize="16sp"/>
+        android:textSize="16sp"
+        android:gravity="center" />
         <!-- android:gravity="center"  -->
         <!-- android:textStyle="bold" -->
 </LinearLayout>

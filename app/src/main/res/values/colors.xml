@@ -20,4 +20,9 @@
     <color name="drawer_background_light">#FFFFFF</color>
     <color name="drawer_background_dark">#121212</color>
     <color name="red">#FF0000</color>
+    
+    <!-- Colors for grid items -->
+    <color name="folder_color">#FFC107</color>
+    <color name="file_color">#2196F3</color>
+    <color name="back_button_color">#757575</color>
 </resources>

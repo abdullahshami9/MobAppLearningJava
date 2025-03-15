@@ -9,6 +9,7 @@ public class Note {
     private int isPinned;
     private String createdAt;
     private String updatedAt;
+    private int type = 1; // Default to 1 (note), 2 = folder
 
     // Constructor
     public Note(int id, int userId, String title, String content, int colorId, int isPinned, String createdAt, String updatedAt) {
@@ -20,6 +21,10 @@ public class Note {
         this.isPinned = isPinned;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    }
+    
+    // Empty constructor for creating new objects
+    public Note() {
     }
 
     // Getters and Setters
@@ -85,5 +90,13 @@ public class Note {
 
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    public int getType() {
+        return type;
+    }
+    
+    public void setType(int type) {
+        this.type = type;
     }
 } 

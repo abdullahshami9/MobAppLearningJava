@@ -10,6 +10,7 @@ import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.drawable.Drawable;
 import android.view.ViewOutlineProvider;
 import android.net.Uri;
 import android.os.Build;
@@ -36,7 +37,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.PopupMenu;
 import android.widget.ImageButton;
-import android.widget.RelativeLayout;
 import android.widget.LinearLayout;
 import android.text.InputType;
 import android.text.style.ForegroundColorSpan;
@@ -54,6 +54,8 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.RecyclerView;
+import android.graphics.Rect;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
@@ -78,6 +80,7 @@ import java.util.HashMap;
 import android.util.Log;
 import android.widget.PopupWindow;
 import android.view.Gravity;
+import android.content.ActivityNotFoundException;
 
 public class PersonalProfileHome extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -94,6 +97,8 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
     private static final String PREFS_NAME = "NotesAppPrefs";
     private static final String SELECTED_OS = "selected_os";
+    // Resource ID for storing the original FAB drawable
+    private static final int fab_original_drawable = View.generateViewId();
 
     // Language selection listener interface
     private interface OnLanguageSelectedListener {
@@ -146,6 +151,12 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         ImageView menuIcon = toolbar.findViewById(R.id.menuIcon);
         ImageView profileIcon = toolbar.findViewById(R.id.profileIcon);
         tagsContainer = findViewById(R.id.tagsContainer);
+        
+        // Make sure toolbar title is initially hidden (search bar is shown)
+        TextView toolbarTitle = toolbar.findViewById(R.id.toolbarTitle);
+        if (toolbarTitle != null) {
+            toolbarTitle.setVisibility(View.GONE);
+        }
 
         // Remove the blur effect on profile icon 
         // applyBlurToProfileAvatar(profileIcon);
@@ -226,9 +237,16 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         GridLayoutManager gridLayoutManager = new GridLayoutManager(this, 2);
         recyclerView.setLayoutManager(gridLayoutManager);
 
+        // Add spacing between grid items
+        int spacingInPixels = dpToPx(8); // 8dp spacing
+        recyclerView.addItemDecoration(new GridSpacingItemDecoration(2, spacingInPixels, true));
+
         // Set up adapter
         gridAdapter = new GridAdapter(dataList, PersonalProfileHome.this::showEditModal);
         recyclerView.setAdapter(gridAdapter);
+        
+        // Set up back button listener
+        gridAdapter.setOnBackButtonClickListener(this::handleBackButtonClick);
 
         // Handle Floating Action Button click
         fabAdd.setOnClickListener(v -> showAddOptionDialog());
@@ -374,49 +392,316 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
     }
 
     /**
-     * Shows a custom popup menu with options to add file or folder
+     * Shows a custom popup menu with options to add content
      */
     private void showAddOptionDialog() {
         // Inflate the custom popup layout
         View popupView = LayoutInflater.from(this).inflate(R.layout.popup_add_options, null);
         
-        // Create the popup window
+        // Create the popup window with dynamic sizing (both width and height wrap content)
         int width = LinearLayout.LayoutParams.WRAP_CONTENT;
         int height = LinearLayout.LayoutParams.WRAP_CONTENT;
         final PopupWindow popupWindow = new PopupWindow(popupView, width, height, true);
         
         // Set up option click listeners
-        View addFileOption = popupView.findViewById(R.id.option_add_file);
-        View addFolderOption = popupView.findViewById(R.id.option_add_folder);
-        View closeButton = popupView.findViewById(R.id.button_close);
+        View fileOption = popupView.findViewById(R.id.option_add_file);
+        View folderOption = popupView.findViewById(R.id.option_add_folder);
         
-        addFileOption.setOnClickListener(v -> {
+        // Ensure each option has dynamic width based on its content
+        if (fileOption != null && fileOption.getLayoutParams() != null) {
+            fileOption.getLayoutParams().width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        }
+        
+        if (folderOption != null && folderOption.getLayoutParams() != null) {
+            folderOption.getLayoutParams().width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        }
+        
+        // Add click listeners with haptic feedback
+        fileOption.setOnClickListener(v -> {
+            // Add haptic feedback
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+            }
+            // Dismiss popup
             popupWindow.dismiss();
-            openAddModal();
+            // Open file modal after animation
+            new Handler().postDelayed(() -> openAddModal(), 250);
         });
         
-        addFolderOption.setOnClickListener(v -> {
+        folderOption.setOnClickListener(v -> {
+            // Add haptic feedback
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+            }
+            // Dismiss popup
             popupWindow.dismiss();
-            openAddFolderModal();
+            // Open folder modal after animation
+            new Handler().postDelayed(() -> openAddFolderModal(), 250);
         });
         
-        closeButton.setOnClickListener(v -> popupWindow.dismiss());
+        // Set dismiss listener to restore FAB icon when popup is dismissed
+        popupWindow.setOnDismissListener(() -> {
+            animateFabToAdd();
+        });
         
         // Set animation style
         popupWindow.setAnimationStyle(android.R.style.Animation_Dialog);
         
-        // Show the popup window centered over the FAB
-        // Calculate position to center above FAB
-        popupWindow.showAsDropDown(fabAdd, 
-                -dpToPx(100),  // Center horizontally (200dp width / 2 = 100dp offset)
-                -dpToPx(350),  // Position well above the FAB
-                Gravity.CENTER);
+        // Set background and prevent dimming
+        popupWindow.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        popupWindow.setOutsideTouchable(true);
+        
+        // Animate + to x in the FAB
+        animateFabToClose();
+        
+        // Position the popup window to show it above the FAB
+        // Calculate position - centered above the FAB
+        int xOffset = -dpToPx(160);  // Centered horizontally
+        int yOffset = -dpToPx(300);  // Higher above the FAB to ensure it's visible
+        
+        // Show popup window above the FAB
+        popupWindow.showAsDropDown(fabAdd, xOffset, yOffset, Gravity.TOP | Gravity.END);
+                
+        // Animate popup appearance with a simple fade
+        popupView.setAlpha(0f);
+        popupView.animate()
+            .alpha(1f)
+            .setDuration(180)
+            .start();
     }
     
+    /**
+     * Animates the FAB icon from + to x by rotating only the drawable inside
+     */
+    private void animateFabToClose() {
+        try {
+            // Create a rotated version of the drawable
+            Drawable originalDrawable = fabAdd.getDrawable();
+            if (originalDrawable != null) {
+                // Save the original drawable for restoration later
+                fabAdd.setTag(fab_original_drawable, originalDrawable);
+                
+                // Create a new drawable that we can rotate
+                android.graphics.drawable.RotateDrawable rotateDrawable = new android.graphics.drawable.RotateDrawable();
+                
+                // Set the original drawable as the child drawable
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    rotateDrawable.setDrawable(originalDrawable.getConstantState().newDrawable().mutate());
+                }
+                
+                // Configure rotation parameters (we'll rotate from 0 to 45 degrees)
+                rotateDrawable.setFromDegrees(0f);
+                rotateDrawable.setToDegrees(45f);
+                rotateDrawable.setPivotX(0.5f);
+                rotateDrawable.setPivotY(0.5f);
+                
+                // Set the rotated drawable to the FAB
+                fabAdd.setImageDrawable(rotateDrawable);
+                
+                // Animate the rotation level from 0 to 10000 (0% to 100%)
+                android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofInt(0, 10000);
+                animator.setDuration(250);
+                animator.setInterpolator(new android.view.animation.OvershootInterpolator(0.5f));
+                
+                animator.addUpdateListener(animation -> {
+                    int level = (Integer) animation.getAnimatedValue();
+                    rotateDrawable.setLevel(level);
+                });
+                
+                animator.start();
+            } else {
+                // Fallback to rotating the entire FAB if drawable is not available
+                fabAdd.animate()
+                    .rotation(45f)
+                    .setDuration(250)
+                    .setInterpolator(new android.view.animation.OvershootInterpolator(0.5f))
+                    .start();
+            }
+        } catch (Exception e) {
+            // If anything goes wrong, fall back to the simple rotation
+            fabAdd.animate()
+                .rotation(45f)
+                .setDuration(250)
+                .setInterpolator(new android.view.animation.OvershootInterpolator(0.5f))
+                .start();
+        }
+    }
+    
+    /**
+     * Animates the FAB icon back to + by rotating only the drawable inside
+     */
+    private void animateFabToAdd() {
+        try {
+            // Get the original drawable we saved
+            Drawable originalDrawable = (Drawable) fabAdd.getTag(fab_original_drawable);
+            
+            if (originalDrawable != null) {
+                // Get the current rotate drawable
+                Drawable currentDrawable = fabAdd.getDrawable();
+                
+                if (currentDrawable instanceof android.graphics.drawable.RotateDrawable) {
+                    // Animate the rotation level back to 0
+                    android.graphics.drawable.RotateDrawable rotateDrawable = 
+                        (android.graphics.drawable.RotateDrawable) currentDrawable;
+                    
+                    android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofInt(10000, 0);
+                    animator.setDuration(250);
+                    animator.setInterpolator(new android.view.animation.AnticipateOvershootInterpolator(0.5f));
+                    
+                    animator.addUpdateListener(animation -> {
+                        int level = (Integer) animation.getAnimatedValue();
+                        rotateDrawable.setLevel(level);
+                    });
+                    
+                    // When animation completes, restore the original drawable
+                    animator.addListener(new android.animation.AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(android.animation.Animator animation) {
+                            fabAdd.setImageDrawable(originalDrawable);
+                        }
+                    });
+                    
+                    animator.start();
+                } else {
+                    // If not a rotate drawable, just set the original back
+                    fabAdd.setImageDrawable(originalDrawable);
+                }
+            } else {
+                // Fallback if we don't have the original drawable
+                fabAdd.animate()
+                    .rotation(0f)
+                    .setDuration(250)
+                    .setInterpolator(new android.view.animation.AnticipateOvershootInterpolator(0.5f))
+                    .start();
+            }
+        } catch (Exception e) {
+            // If anything goes wrong, fall back to the simple rotation
+            fabAdd.animate()
+                .rotation(0f)
+                .setDuration(250)
+                .setInterpolator(new android.view.animation.AnticipateOvershootInterpolator(0.5f))
+                .start();
+        }
+    }
+
     /**
      * Opens a dialog for creating a new folder
      */
     private void openAddFolderModal() {
+        // Use Android's built-in folder picker with Storage Access Framework
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addCategory(Intent.CATEGORY_DEFAULT);
+        
+        // Add flags to show advanced options and allow multiple selection if needed
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                
+        // Additional options for a cleaner UI experience
+        intent.putExtra("android.content.extra.SHOW_ADVANCED", true);
+        intent.putExtra("android.content.extra.FANCY", true);
+        intent.putExtra("android.content.extra.SHOW_FILESIZE", true);
+        
+        try {
+            startActivityForResult(intent, REQUEST_DIRECTORY_PICKER);
+        } catch (ActivityNotFoundException e) {
+            // Fallback to old dialog if folder picker is not available
+            showFolderNameInputDialog();
+            Toast.makeText(this, "Folder picker not available on this device", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    // Request code for folder picker
+    private static final int REQUEST_DIRECTORY_PICKER = 1234;
+    
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == REQUEST_DIRECTORY_PICKER && resultCode == RESULT_OK) {
+            if (data != null && data.getData() != null) {
+                Uri uri = data.getData();
+                
+                // Take persistent permissions to access the folder later
+                getContentResolver().takePersistableUriPermission(uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                
+                // Extract folder name from URI
+                String folderName = getFolderNameFromUri(uri);
+                
+                // Add the folder to the database
+                long folderId = dbHelper.addFolder(currentUserId, folderName);
+                
+                if (folderId != -1) {
+                    // Store the URI for future reference if needed
+                    storeFolderUri(folderId, uri.toString());
+                    
+                    // Refresh the folders list
+                    loadFolders();
+                    
+                    Toast.makeText(this, "Folder selected: " + folderName, Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Error adding folder", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+    }
+    
+    /**
+     * Extracts a readable folder name from a content URI
+     */
+    private String getFolderNameFromUri(Uri uri) {
+        // Try to get the display name from the DocumentsContract
+        String folderName = null;
+        
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                String docId = android.provider.DocumentsContract.getTreeDocumentId(uri);
+                String[] parts = docId.split(":");
+                if (parts.length > 1) {
+                    // The last path segment is usually the folder name
+                    folderName = parts[parts.length - 1];
+                }
+            }
+        } catch (Exception e) {
+            // Fall back to extracting from the URI
+        }
+        
+        // If we couldn't get from DocumentsContract, try from the URI path
+        if (folderName == null || folderName.isEmpty()) {
+            List<String> pathSegments = uri.getPathSegments();
+            if (!pathSegments.isEmpty()) {
+                folderName = pathSegments.get(pathSegments.size() - 1);
+            } else {
+                // Last resort - use the last part of the URI string
+                String uriString = uri.toString();
+                int lastSlash = uriString.lastIndexOf('/');
+                if (lastSlash != -1 && lastSlash < uriString.length() - 1) {
+                    folderName = uriString.substring(lastSlash + 1);
+                } else {
+                    folderName = "Selected Folder"; // Default name if we can't extract
+                }
+            }
+        }
+        
+        return folderName;
+    }
+    
+    /**
+     * Stores the folder URI for future use
+     */
+    private void storeFolderUri(long folderId, String uriString) {
+        // Store the URI in SharedPreferences for later retrieval
+        SharedPreferences prefs = getSharedPreferences("FolderURIs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString("folder_" + folderId, uriString);
+        editor.apply();
+    }
+    
+    /**
+     * Fallback method to show the old folder name input dialog
+     */
+    private void showFolderNameInputDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_input_material, null);
         EditText inputText = dialogView.findViewById(R.id.inputText);
         
@@ -440,10 +725,6 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         AlertDialog dialog = new AlertDialog.Builder(this, R.style.CustomDialogStyle)
                 .setView(dialogView)
                 .create();
-                
-        // Apply blur effect to background
-        // View rootView = findViewById(android.R.id.content);
-        // BlurHelper.applyBlurEffect(dialog, rootView);
         
         saveIcon.setOnClickListener(v -> {
             String folderName = inputText.getText().toString();
@@ -598,6 +879,7 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             }
         });
 
+        // Show the dialog
         dialog.show();
     }
 
@@ -679,14 +961,19 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         // Check for potential fatal errors
         switch (extension.toLowerCase()) {
             case ".java":
-                return content.contains("System.exit(-1)") ||
-                       content.contains("throw new RuntimeException");
+                return !content.isEmpty() && 
+                       (content.contains("System.exit") || 
+                        content.contains("Runtime.getRuntime().exit") ||
+                        content.contains("throw new RuntimeException"));
             case ".py":
-                return content.contains("sys.exit(-1)") ||
-                       content.contains("raise Exception");
+                return !content.isEmpty() && 
+                       (content.contains("sys.exit") || 
+                        content.contains("os._exit") ||
+                        content.contains("raise Exception"));
             case ".js":
-                return content.contains("process.exit(-1)") ||
-                       content.contains("throw new Error");
+                return !content.isEmpty() && 
+                       (content.contains("process.exit") || 
+                        content.contains("throw new Error"));
             default:
                 return false;
         }
@@ -769,6 +1056,16 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
 
     private void showEditModal(int position) {
         // Get the note for this position
+        Note item = dataList.get(position);
+        
+        // Check if this is a folder
+        if (item.getType() == 2) {
+            // This is a folder, show folder contents instead of edit dialog
+            showFolderContents(item.getId(), item.getTitle());
+            return;
+        }
+        
+        // This is a note - show the regular edit dialog
         Note note = notesList.get(position);
 
         // Inflate the dialog layout
@@ -898,8 +1195,8 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                     e.printStackTrace();
                 }
                 
-                popup.setOnMenuItemClickListener(item -> {
-                    switch (item.getItemId()) {
+                popup.setOnMenuItemClickListener(menuItem -> {
+                    switch (menuItem.getItemId()) {
                         case 1: // Terminal
                             isTerminalVisible[0] = !isTerminalVisible[0];
                             if (terminalSection != null) {
@@ -1115,14 +1412,82 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
         dialog.show();
     }
 
+    /**
+     * Shows the contents of a folder
+     */
+    private void showFolderContents(int folderId, String folderName) {
+        // Get notes in this folder
+        List<Note> notesInFolder = dbHelper.getNotesByFolder(folderId);
+        
+        // Store current data to allow going back
+        List<Note> previousDataList = new ArrayList<>(dataList);
+        
+        // Update dataList to show only folder contents
+        dataList.clear();
+        dataList.addAll(notesInFolder);
+        
+        // Add a "Back" item at the top
+        Note backItem = new Note();
+        backItem.setId(-1); // Special ID to indicate this is a back button
+        backItem.setTitle("« Back");
+        backItem.setType(3); // Type 3 indicates back button
+        dataList.add(0, backItem);
+        
+        // Update the adapter
+        gridAdapter.updateData(dataList);
+        
+        // Update UI to show folder name
+        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        TextView toolbarTitle = toolbar.findViewById(R.id.toolbarTitle);
+        EditText searchBar = toolbar.findViewById(R.id.searchBar);
+        ImageView menuIcon = toolbar.findViewById(R.id.menuIcon);
+        ImageView profileIcon = toolbar.findViewById(R.id.profileIcon);
+        
+        if (toolbarTitle != null) {
+            toolbarTitle.setText(folderName);
+            toolbarTitle.setVisibility(View.VISIBLE);
+            
+            // Hide search bar when showing folder contents
+            if (searchBar != null) {
+                searchBar.setVisibility(View.GONE);
+            }
+            
+            // Make sure profile and menu icons maintain their positions
+            if (menuIcon != null && profileIcon != null) {
+                // The menu icon and profile icon are inside a LinearLayout in the toolbar
+                // So we need to use LinearLayout.LayoutParams, not Toolbar.LayoutParams
+                LinearLayout.LayoutParams menuParams = new LinearLayout.LayoutParams(
+                    dpToPx(30), dpToPx(30)
+                );
+                menuParams.setMarginEnd(dpToPx(10));
+                menuIcon.setLayoutParams(menuParams);
+                
+                LinearLayout.LayoutParams profileParams = new LinearLayout.LayoutParams(
+                    dpToPx(36), dpToPx(36)
+                );
+                profileIcon.setLayoutParams(profileParams);
+            }
+        }
+        
+        // Store previous state for back button
+        gridAdapter.setPreviousState(previousDataList);
+        
+        Toast.makeText(this, "Viewing folder: " + folderName, Toast.LENGTH_SHORT).show();
+    }
+
     private void loadNotes() {
         // Fetch notes from the database
         notesList = dbHelper.getNotesByUser(currentUserId);
 
         // Update the dataList
         dataList.clear();
+        
+        // First load folders to ensure they appear at the top
+        loadFolders();
+        
+        // Then add notes after folders
         dataList.addAll(notesList);
-
+        
         // Update the RecyclerView adapter
         gridAdapter.updateData(dataList);
     }
@@ -1751,9 +2116,24 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
             // Fetch folders from the database
             foldersList = dbHelper.getFoldersByUser(currentUserId);
             
-            // Here you would update your UI to display folders
-            // For example, if you have a RecyclerView for folders:
-            // folderAdapter.updateData(foldersList);
+            // Clear any existing folders from dataList to avoid duplicates
+            dataList.removeIf(item -> item.getType() == 2);
+            
+            // Add folders to the dataList that's displayed in the grid
+            for (Folder folder : foldersList) {
+                // Create a Note object to represent the folder in the grid
+                // We'll use the type field to distinguish folders (type=2) from notes (type=1)
+                Note folderItem = new Note();
+                folderItem.setId(folder.getId());
+                folderItem.setTitle(folder.getName());
+                folderItem.setContent(""); // Folders don't have content
+                folderItem.setColorId(1); // Default color
+                folderItem.setIsPinned(0);
+                folderItem.setType(2); // Type 2 indicates folder
+                
+                // Add to dataList
+                dataList.add(folderItem);
+            }
             
             Log.d("FOLDERS", "Loaded " + foldersList.size() + " folders");
         } catch (Exception e) {
@@ -1778,5 +2158,88 @@ public class PersonalProfileHome extends AppCompatActivity implements Navigation
                 outline.setOval(0, 0, view.getWidth(), view.getHeight());
             }
         });
+    }
+
+    /**
+     * Handles the back button click when navigating folders
+     */
+    private void handleBackButtonClick() {
+        // Get the previous state
+        List<Note> previousState = gridAdapter.getPreviousState();
+        
+        // Restore the dataList to the previous state
+        dataList.clear();
+        dataList.addAll(previousState);
+        
+        // Update the adapter
+        gridAdapter.updateData(dataList);
+        
+        // Reset the toolbar title and show search bar
+        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        TextView toolbarTitle = toolbar.findViewById(R.id.toolbarTitle);
+        EditText searchBar = toolbar.findViewById(R.id.searchBar);
+        ImageView menuIcon = toolbar.findViewById(R.id.menuIcon);
+        ImageView profileIcon = toolbar.findViewById(R.id.profileIcon);
+        
+        if (toolbarTitle != null) {
+            toolbarTitle.setVisibility(View.GONE);
+        }
+        
+        if (searchBar != null) {
+            searchBar.setVisibility(View.VISIBLE);
+        }
+        
+        // Restore original layout parameters for icons
+        if (menuIcon != null && profileIcon != null) {
+            // The menu icon and profile icon are inside a LinearLayout in the toolbar
+            // So we need to use LinearLayout.LayoutParams, not Toolbar.LayoutParams
+            LinearLayout.LayoutParams menuParams = new LinearLayout.LayoutParams(
+                dpToPx(30), dpToPx(30)
+            );
+            menuParams.setMarginEnd(dpToPx(10));
+            menuIcon.setLayoutParams(menuParams);
+            
+            LinearLayout.LayoutParams profileParams = new LinearLayout.LayoutParams(
+                dpToPx(36), dpToPx(36)
+            );
+            profileIcon.setLayoutParams(profileParams);
+        }
+    }
+
+    /**
+     * ItemDecoration for adding spacing between grid items
+     */
+    public class GridSpacingItemDecoration extends RecyclerView.ItemDecoration {
+        private int spanCount;
+        private int spacing;
+        private boolean includeEdge;
+
+        public GridSpacingItemDecoration(int spanCount, int spacing, boolean includeEdge) {
+            this.spanCount = spanCount;
+            this.spacing = spacing;
+            this.includeEdge = includeEdge;
+        }
+
+        @Override
+        public void getItemOffsets(Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
+            int position = parent.getChildAdapterPosition(view);
+            int column = position % spanCount;
+
+            if (includeEdge) {
+                outRect.left = spacing - column * spacing / spanCount;
+                outRect.right = (column + 1) * spacing / spanCount;
+
+                if (position < spanCount) {
+                    outRect.top = spacing;
+                }
+                outRect.bottom = spacing;
+            } else {
+                outRect.left = column * spacing / spanCount;
+                outRect.right = spacing - (column + 1) * spacing / spanCount;
+                if (position >= spanCount) {
+                    outRect.top = spacing;
+                }
+            }
+        }
     }
 }

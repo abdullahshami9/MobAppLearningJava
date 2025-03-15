@@ -26,6 +26,18 @@
             android:layout_marginEnd="10dp"
             android:contentDescription="Menu" />
 
+        <!-- Toolbar Title - Add this new TextView -->
+        <TextView
+            android:id="@+id/toolbarTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="My Files"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:layout_marginEnd="10dp"
+            android:visibility="gone" />
+
         <!-- Search Bar - Now uses 0dp with weight to expand proportionally -->
         <EditText
             android:id="@+id/searchBar"
